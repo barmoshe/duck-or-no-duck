@@ -32,6 +32,7 @@ const RAMPS := {
 	"orange": ["plum", "rust", "orange", "amber", "lemon"],
 	"teal": ["ink", "deep", "pine", "sky", "cyan"],
 	"slime": ["night", "navy", "sea", "cyan", "foam"],
+	"chick": ["bark", "orange", "amber", "lemon", "lemon"],
 }
 
 const INK := Color("181425")

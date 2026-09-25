@@ -62,7 +62,7 @@ const ALL := {
 		"look": {"shape": "flat", "ramp": "snow", "accent": "coral", "size": 9, "mouth": "pincers", "eyes": "stalks", "legs": "crab", "arms": "claws", "pattern": "down"}},
 	# ---------------------------------------------------------------- summoned
 	"duckling": {"name": "Duckling", "biome": "any", "role": "predator", "hp": 22, "dmg": 5, "speed": 56, "xp": 4, "swim": true,
-		"look": {"shape": "round", "ramp": "gold", "accent": "orange", "size": 5, "mouth": "bill", "eyes": "beady", "legs": "webbed", "tail": "nub", "pattern": "down"}},
+		"look": {"shape": "round", "ramp": "chick", "accent": "orange", "size": 5, "mouth": "bill", "eyes": "beady", "legs": "webbed", "tail": "nub", "pattern": "down"}},
 	# ---------------------------------------------------------------- bosses (duck hybrids, like Crab's crab hybrids)
 	"duckodile": {"name": "Duckodile", "biome": "any", "role": "boss", "hp": 900, "dmg": 12, "speed": 44, "xp": 60, "swim": true, "boss": true,
 		"look": {"shape": "long", "ramp": "moss", "accent": "gold", "size": 19, "mouth": "bill", "eyes": "angry", "armor": "plating", "legs": "stubby", "tail": "long", "pattern": "scales"}},

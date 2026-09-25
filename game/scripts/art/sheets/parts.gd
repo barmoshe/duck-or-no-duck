@@ -16,7 +16,7 @@ const ALL := {
 		[".ooo.", "owwwo", "owkko", "owkko", ".ooo."],
 		[".ooo.", "o333o", "okkko", "o333o", ".ooo."]]},
 	"eye:angry": {"pivot": Vector2i(1, 1), "frames": [["oo..", ".kkw", ".kkk"], ["oo..", "....", ".kkk"]]},
-	"eye:compound": {"pivot": Vector2i(1, 1), "frames": [[".vv.", "vPvv", "vvPv", ".vv."]]},
+	"eye:compound": {"pivot": Vector2i(1, 1), "frames": [[".uu.", "uTtu", "uuTu", ".uu."]]},
 	"eye:stalks": {"pivot": Vector2i(1, 4), "frames": [
 		["ww.ww", "wk.wk", ".o..o", ".o..o", ".o.o."],
 		["oo.oo", "kk.kk", ".o..o", ".o..o", ".o.o."]]},
