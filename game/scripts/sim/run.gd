@@ -263,8 +263,11 @@ func recompute() -> void:
 		stats[k] = float(stats.get(k, 0.0)) + float(_bonus[k])
 	for k in buffs:
 		stats[k] = float(stats.get(k, 0.0)) + float(buffs[k]["v"])
-	stats["max_hp"] += (level - 1) * 3.0
-	stats["size"] += minf(50.0, (level - 1) * 2.0)
+	# fewer, heavier level-ups: every level also makes you tougher and stronger
+	stats["max_hp"] += (level - 1) * 6.0
+	stats["physical"] += (level - 1) * 0.6
+	stats["ability"] += (level - 1) * 0.6
+	stats["size"] += minf(50.0, (level - 1) * 3.0)
 	var all := float(stats["all"])
 	if all > 0.0:
 		for k in ["physical", "ability", "max_hp", "speed", "social", "armor"]:
