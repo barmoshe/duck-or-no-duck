@@ -48,7 +48,7 @@ static func text(ci: CanvasItem, pos: Vector2, s: String, col: Color = TEXT, f: 
 
 
 ## Wrapped text inside width, returns the height used.
-static func para(ci: CanvasItem, pos: Vector2, s: String, width: float, col: Color = TEXT, f: Font = null, size: int = 8, line_h: int = 9) -> float:
+static func para(ci: CanvasItem, pos: Vector2, s: String, width: float, col: Color = TEXT, f: Font = null, size: int = 8, line_h: int = 9, outline: bool = true) -> float:
 	if f == null:
 		f = small()
 	var words := s.split(" ")
@@ -57,13 +57,13 @@ static func para(ci: CanvasItem, pos: Vector2, s: String, width: float, col: Col
 	for wd in words:
 		var trial := wd if line == "" else line + " " + wd
 		if text_w(f, trial, size) > width and line != "":
-			text(ci, Vector2(pos.x, y), line, col, f, size)
+			text(ci, Vector2(pos.x, y), line, col, f, size, 0, outline)
 			y += line_h
 			line = wd
 		else:
 			line = trial
 	if line != "":
-		text(ci, Vector2(pos.x, y), line, col, f, size)
+		text(ci, Vector2(pos.x, y), line, col, f, size, 0, outline)
 		y += line_h
 	return y - pos.y
 

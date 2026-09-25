@@ -108,7 +108,7 @@ func fire(id: String) -> bool:
 	Sfx.play(String(spec.get("sfx", "chomp")), randf_range(0.9, 1.15), -3.0)
 	match String(spec["kind"]):
 		"melee":
-			hit(t, dmg, p, {"bleed": float(spec.get("bleed", 0.0))})
+			hit(t, dmg, p, {"bleed": float(spec.get("bleed", 0.0)), "slow": float(spec.get("slow", 0.0)), "knock": float(spec.get("knock", 0.0))})
 			w.fx.slash(t.position + Vector2(0, -t.r * 0.8), dir, t.r + 7.0)
 		"multi":
 			# capture the target by id: it may be freed before a later hit lands
@@ -117,7 +117,7 @@ func fire(id: String) -> bool:
 				queued.append({"t": k * 0.09, "fn": func() -> void:
 					var tg = instance_from_id(tid)
 					if World.valid(tg):
-						hit(tg, dmg, p, {})
+						hit(tg, dmg, p, {"slow": float(spec.get("slow", 0.0))})
 						w.fx.slash(tg.position + Vector2(randf_range(-3, 3), -tg.r * 0.8 + randf_range(-3, 3)), dir.rotated(randf_range(-0.6, 0.6)), tg.r + 4.0, Color.WHITE, 0.14)
 						w.fx.burst(tg.position + Vector2(0, -tg.r), Pal.c("snow", 4), 2, 30.0)})
 		"spin":
@@ -307,6 +307,8 @@ func hit(t: Actor, amount: float, src: Actor, opts: Dictionary) -> void:
 		dmg *= 20.0 / (20.0 + t.armor)
 	t.hp -= dmg
 	t.since_hurt = 0.0
+	if src == p and stat("lifesteal") > 0.0:
+		p.hp = minf(p.max_hp, p.hp + dmg * stat("lifesteal") / 100.0)
 	t.hit_flash(Color.WHITE if not t.is_player else Pal.c("red", 3))
 	if src:
 		t.hurt_by = src

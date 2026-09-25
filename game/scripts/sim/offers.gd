@@ -9,7 +9,7 @@ const RARITY_W := [60.0, 28.0, 10.0, 2.0]
 
 static func weight(run: Run, id: String, min_rarity: int) -> float:
 	var d := Evolutions.get_def(id)
-	var r := int(d["rarity"])
+	var r := mini(3, Evolutions.offered_rarity(id, run.rank(id) + 1))
 	if r < min_rarity:
 		return 0.0
 	var w: float = RARITY_W[r] * (1.0 + run.level * 0.03 * r)
@@ -28,7 +28,11 @@ static func eligible(run: Run, id: String, source: String) -> bool:
 	if d.get("starter", false) and not run.has(id):
 		return false
 	var t := String(d["type"])
-	if (t == "fruit") != (source == "boss"):
+	if (t == "branch") != (source == "boss"):
+		return false
+	if d.get("locked", false) and not run.unlocked.has(id) and not run.has(id):
+		return false
+	if run.banned.has(id):
 		return false
 	if run.rank(id) >= int(d.get("max", 1)):
 		return false
@@ -92,8 +96,8 @@ static func _other_type_left(pool: Array, types: Dictionary) -> bool:
 	return false
 
 
-static func min_rarity_of(hand: Array) -> int:
+static func min_rarity_of(run: Run, hand: Array) -> int:
 	var m := 3
 	for id in hand:
-		m = mini(m, int(Evolutions.get_def(id)["rarity"]))
+		m = mini(m, Evolutions.offered_rarity(id, run.rank(id) + 1))
 	return m

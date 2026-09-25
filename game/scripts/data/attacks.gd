@@ -16,6 +16,9 @@ const ATTACK := {
 	"pincer_snap": {"cd": 1.3, "range": 18.0, "kind": "melee", "scale": "physical", "coef": 1.5, "bleed": 5.0, "sfx": "snap"},
 	"charm_song": {"cd": 4.5, "range": 70.0, "kind": "charm", "scale": "ability", "coef": 0.5, "sfx": "song"},
 	"quack": {"cd": 2.6, "range": 62.0, "kind": "cone", "scale": "ability", "coef": 0.6, "stun": 0.9, "sfx": "quack"},
+	"tentacle_lash": {"cd": 1.1, "range": 24.0, "kind": "multi", "scale": "ability", "coef": 0.55, "hits": 2, "slow": 0.4, "sfx": "whip"},
+	"kick": {"cd": 1.0, "range": 16.0, "kind": "melee", "scale": "physical", "coef": 1.3, "knock": 150.0, "sfx": "thud"},
+	"constrict": {"cd": 1.5, "range": 16.0, "kind": "melee", "scale": "physical", "coef": 1.1, "bleed": 4.0, "slow": 0.6, "sfx": "snap"},
 	"feather_darts": {"cd": 1.5, "range": 115.0, "kind": "spread", "scale": "ability", "coef": 0.5, "count": 3, "speed": 210.0, "ramp": "duck", "sfx": "whip"},
 }
 
@@ -33,6 +36,7 @@ const MOVE := {
 	"leap": {"cd": 4.5, "dist": 95.0, "time": 0.4, "invuln": true, "air": true},
 	"paddle": {"cd": 1.8, "dist": 48.0, "time": 0.18, "invuln": false},
 	"burrow": {"cd": 5.0, "dist": 80.0, "time": 1.0, "invuln": true, "under": true},
+	"sprint": {"cd": 3.0, "dist": 80.0, "time": 0.28, "invuln": false},
 	"glide": {"cd": 5.0, "dist": 125.0, "time": 0.55, "invuln": true, "air": true},
 }
 

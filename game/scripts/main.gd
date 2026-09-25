@@ -134,6 +134,10 @@ func _shot_timer() -> void:
 		"levelup":
 			queue.append({"kind": "level", "min": 0})
 			_next_choice()
+			levelup.press("card:1")
+		"branch":
+			queue.append({"kind": "fruit", "min": 0})
+			_next_choice()
 		"poi":
 			_on_poi("sun_dial")
 		"end":
@@ -364,10 +368,10 @@ func _next_choice() -> void:
 	match String(c["kind"]):
 		"level":
 			cur_source = "level"
-			_show_hand("LEVEL %d!" % run.level, "Pick an evolution", true)
+			_show_hand("EVOLUTION", "Level %d" % run.level, true)
 		"fruit":
 			cur_source = "boss"
-			_show_hand("BOSS FRUIT", "A major mutation", false)
+			_show_hand("BRANCHING EVOLUTION", "Boss Fruit: your body plan branches", false)
 		"evo":
 			cur_source = "poi"
 			_show_hand("EVOLVE", "Rare or better", true)
@@ -418,7 +422,7 @@ func _on_upgrade() -> void:
 		return
 	run.mutagen -= run.upgrade_cost
 	run.upgrade_cost += 10
-	cur_min = mini(3, Offers.min_rarity_of(levelup.hand) + 1)
+	cur_min = mini(3, Offers.min_rarity_of(run, levelup.hand) + 1)
 	levelup.hand = Offers.roll(run, Game.rng, cur_source, 3, cur_min)
 	Sfx.play("mutagen")
 	levelup.show_screen()

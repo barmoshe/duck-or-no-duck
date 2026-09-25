@@ -18,6 +18,7 @@ const BASE := {
 	"swim": 0.0, "temper": 0.0, "all": 0.0, "vision": 0.0, "identify": 0.0,
 	"meat_xp": 0.0, "fish_xp": 0.0, "fruit_xp": 0.0, "fruit_heal": 0.0, "scav_xp": 0.0,
 	"vegan": 0.0, "omni": 0.0, "pollen": 0.0, "feed": 100.0, "ruminant": 0.0, "shroom_xp": 0.0,
+	"lifesteal": 0.0, "terrain_res": 0.0,
 }
 const BASE_LOOK := {
 	"body": "slime", "ramp": "slime", "accent": "gold", "size": 8, "eyes": "cute", "mouth": "none",
@@ -58,6 +59,9 @@ var free_rerolls := 0
 var best_duck_parts := 0
 var eaten := {}
 var food_eaten := {}  # food type -> pieces eaten this run
+var unlocked := {}  # evolution ids opened by what you hold (the evolution tree)
+var banned := {}  # evolution ids ruled out by what you hold
+var branches: Array = []  # branching evolutions taken, in order
 var buffs := {}  # temporary stat buffs: key -> {v, t}
 var _bonus := {}  # permanent point-of-interest bonuses
 
@@ -147,8 +151,9 @@ func is_night() -> bool:
 	return darkness() > 0.5
 
 
+## Fewer, heavier level-ups than Crab: ~15 in a full run.
 func xp_need() -> float:
-	return 6.0 + level * 4.0 + level * level * 0.3
+	return 12.0 + level * 12.0 + level * level * 2.6
 
 
 ## Adds XP, returns how many level ups happened.
@@ -181,6 +186,8 @@ func take(id: String) -> String:
 			if move != id:
 				replaced = move
 				move = id
+	if String(d.get("type", "")) == "branch" and not id in branches:
+		branches.append(id)
 	_grant(id)
 	if d.has("grants") and ultimate == "":
 		var g := String(d["grants"])
@@ -265,7 +272,23 @@ func recompute() -> void:
 	stats["duck_taken"] = 4.0 * duck_parts()
 	stats["cd_mult"] = 1.0 / (1.0 + float(stats["cdr"]) / 100.0)
 	stats["ally_max"] = mini(12, 1 + int(float(stats["social"]) / 5.0) + int(stats["ally_cap"]))
+	_tree()
 	_look()
+
+
+## The evolution tree: what your evolutions (at their levels) unlock and ban.
+func _tree() -> void:
+	unlocked.clear()
+	banned.clear()
+	for id in owned:
+		var d := Evolutions.get_def(id)
+		var u: Dictionary = d.get("unlocks", {})
+		for lvl in u:
+			if int(owned[id]) >= int(lvl):
+				for x in u[lvl]:
+					unlocked[String(x)] = id
+		for b in Evolutions.bans_of(id):
+			banned[String(b)] = id
 
 
 func bodily_mutations() -> int:

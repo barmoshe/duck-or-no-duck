@@ -184,7 +184,7 @@ func _pause() -> void:
 		lines.append("ULTIMATE: " + (String(Evolutions.get_def(run.ultimate)["name"]) if run.ultimate != "" else "none") + "   MOVE: " + String(Evolutions.get_def(run.move)["name"]))
 		var pas: Array[String] = []
 		for id in run.order:
-			if Evolutions.get_def(id)["type"] in ["passive", "fruit"]:
+			if Evolutions.get_def(id)["type"] in ["passive", "branch"]:
 				pas.append("%s%s" % [String(Evolutions.get_def(id)["name"]), "" if run.rank(id) < 2 else " x%d" % run.rank(id)])
 		lines.append("PASSIVES: " + (", ".join(pas) if not pas.is_empty() else "none yet"))
 		var st := run.stats

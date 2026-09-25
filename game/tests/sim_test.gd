@@ -57,7 +57,46 @@ func _logic() -> void:
 	for id in hand:
 		check(not Evolutions.get_def(id).get("starter", false) or r.has(id), "no unowned starters offered")
 	var fruit := Offers.roll(r, rng, "boss")
-	check(fruit.size() == 3 and Evolutions.get_def(fruit[0])["type"] == "fruit", "boss food offers Boss Fruits")
+	check(fruit.size() == 3 and Evolutions.get_def(fruit[0])["type"] == "branch", "Boss Fruit offers Branching Evolutions")
+	# the evolution tree: unlocks, bans, levels, branches
+	var tr := Run.new("pioneer", 0, rng)
+	check(not Offers.eligible(tr, "glide", "level"), "Glide starts locked")
+	tr.take("duck_wings")
+	check(Offers.eligible(tr, "glide", "level") and Offers.eligible(tr, "feather_darts", "level"), "Duck Wings unlocks Glide and Feather Darts")
+	tr.take("herbivore")
+	check(not Offers.eligible(tr, "vegan", "level"), "Vegan needs Herbivore level 2")
+	tr.take("herbivore")
+	check(Offers.eligible(tr, "vegan", "level"), "Herbivore level 2 unlocks Vegan")
+	tr.take("branch_wings")
+	check(not Offers.eligible(tr, "branch_shell", "boss") and tr.branches == ["branch_wings"], "Wings bans Shell")
+	check(Offers.eligible(tr, "duck_dive", "level"), "Wings opens Duck Dive")
+	check(Evolutions.offered_rarity("thick_hide", 1) == 0 and Evolutions.offered_rarity("thick_hide", 3) == 1 and Evolutions.offered_rarity("thick_hide", 5) == 2, "rarity rises with level (common, rare at 3, epic at 5)")
+	var ln := Evolutions.lines("jaws", 2)
+	check(ln.size() >= 2 and String(ln[0][1]) != "" and String(ln[0][2]) != "", "cards show current -> next numbers (%s)" % [ln[0]])
+	var br := Offers.roll(tr, rng, "boss")
+	var all_br := br.size() == 3
+	for id in br:
+		all_br = all_br and Evolutions.get_def(id)["type"] == "branch"
+	check(all_br, "a Boss Fruit hand is 3 branching evolutions: %s" % [br])
+	var bad_tree := 0
+	for id in Evolutions.ALL:
+		for x in Evolutions.unlocks_of(id):
+			if Evolutions.get_def(x).is_empty():
+				bad_tree += 1
+		for x in Evolutions.get_def(id).get("excludes", []):
+			if Evolutions.get_def(x).is_empty():
+				bad_tree += 1
+	check(bad_tree == 0, "every unlock and ban names a real evolution")
+	var orphan := 0
+	for id in Evolutions.ALL:
+		if Evolutions.get_def(id).get("locked", false):
+			var opened := false
+			for other in Evolutions.ALL:
+				if id in Evolutions.unlocks_of(other):
+					opened = true
+			if not opened:
+				orphan += 1
+	check(orphan == 0, "every locked evolution can be unlocked (%d orphans)" % orphan)
 	# attacks: a third replaces the weakest
 	r.take("spit")
 	var repl := r.take("tail_whip")
@@ -176,7 +215,7 @@ func _score(r: Run, id: String) -> float:
 			sc += 3.0 if r.has(id) else (2.0 if r.attacks.size() < 2 else 0.5)
 		"ultimate":
 			sc += 2.5 if r.ultimate == "" or r.ultimate == id else 0.2
-		"fruit":
+		"branch":
 			sc += 3.0
 	var st: Dictionary = d.get("stats", {})
 	for k in ["physical", "ability", "max_hp", "armor", "regen", "all"]:
@@ -287,7 +326,7 @@ func _sim(seconds: float, start_at: float, label: String) -> void:
 				elif main.levelup.visible:
 					if main.run.mutagen >= main.run.reroll_cost and Game.rng.randf() < 0.2:
 						main.levelup.press("reroll")
-					main.levelup.press("card:%d" % _best_card(main.run, main.levelup.hand))
+					main.levelup.press("pick:%d" % _best_card(main.run, main.levelup.hand))
 					picks += 1
 				else:
 					main._next_choice()

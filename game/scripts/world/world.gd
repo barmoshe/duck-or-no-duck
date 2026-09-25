@@ -486,6 +486,9 @@ func _terrain(a: Actor) -> void:
 		a.terrain = 1.0
 	if weather.kind == "blizzard" and b == 3 and not a.fly:
 		a.terrain *= 0.7
+	# Wings: most of the terrain penalty goes away
+	if a.is_player and a.terrain < 1.0:
+		a.terrain = 1.0 - (1.0 - a.terrain) * (1.0 - float(run.stats["terrain_res"]) / 100.0)
 	if weather.kind == "current" and w != 0:
 		a.vel += weather.push * 0.016
 
