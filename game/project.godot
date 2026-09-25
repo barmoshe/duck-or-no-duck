@@ -1,0 +1,63 @@
+; Engine configuration file.
+; Duck or no duck ?! — Godot 4.7, pixel art. The virtual view is refit every frame so the
+; short side is about 270 px at a whole-number scale (Game.fit_pixels).
+
+config_version=5
+
+[application]
+
+config/name="Duck or no duck ?!"
+config/description="Eat. Evolve. Everything becomes duck."
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+config/icon="res://assets/icon/icon.png"
+config/version="0.1.0"
+boot_splash/bg_color=Color(0.094, 0.078, 0.145, 1)
+boot_splash/show_image=false
+run/max_fps=0
+
+[audio]
+
+general/default_playback_type.web=0
+
+[autoload]
+
+Game="*res://scripts/autoload/game.gd"
+Sfx="*res://scripts/autoload/sfx.gd"
+
+[display]
+
+window/size/viewport_width=480
+window/size/viewport_height=270
+window/size/window_width_override=1280
+window/size/window_height_override=720
+window/stretch/mode="viewport"
+window/stretch/aspect="expand"
+window/handheld/orientation=4
+window/vsync/vsync_mode=1
+
+[gui]
+
+theme/custom_font="res://assets/fonts/PixelifySans.ttf"
+theme/default_font_antialiasing=0
+theme/default_font_hinting=0
+theme/default_font_subpixel_positioning=0
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=false
+pointing/emulate_mouse_from_touch=true
+
+[physics]
+
+common/physics_ticks_per_second=60
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/canvas_textures/default_texture_filter=0
+textures/vram_compression/import_etc2_astc=true
+2d/snap/snap_2d_transforms_to_pixel=true
+2d/snap/snap_2d_vertices_to_pixel=true
+environment/defaults/default_clear_color=Color(0.094, 0.078, 0.145, 1)
