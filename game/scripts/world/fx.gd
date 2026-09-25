@@ -8,6 +8,10 @@ var rings: Array = []  # {p, r0, r1, t, dur, c}
 var cones: Array = []  # {p, dir, len, arc, t, dur, c}
 var texts: Array = []  # {p, s, t, dur, c, big}
 var marks: Array = []  # {p, r, t, dur, c} telegraph circles
+var chew_on := false  # the chewing ring over a carcass
+var chew_p := Vector2.ZERO
+var chew_frac := 0.0
+var slashes: Array = []  # {p, dir, r, t, dur, c, flip} crescent swipes
 var font: Font
 
 
@@ -32,6 +36,11 @@ func cone(p: Vector2, dir: Vector2, length: float, arc: float, dur: float, c: Co
 	cones.append({"p": p, "dir": dir, "len": length, "arc": arc, "t": 0.0, "dur": dur, "c": c})
 
 
+## A crescent swipe centered on p, bulging toward dir, sweeping open over its life.
+func slash(p: Vector2, dir: Vector2, r: float, c: Color = Color.WHITE, dur: float = 0.18) -> void:
+	slashes.append({"p": p, "dir": dir, "r": r, "t": 0.0, "dur": dur, "c": c, "flip": randf() < 0.5})
+
+
 func mark(p: Vector2, r: float, dur: float, c: Color) -> void:
 	marks.append({"p": p, "r": r, "t": 0.0, "dur": dur, "c": c})
 
@@ -54,7 +63,7 @@ func step(dt: float) -> void:
 		v *= maxf(0.0, 1.0 - dt * 3.0)
 		b["v"] = v
 		b["p"] = (b["p"] as Vector2) + v * dt
-	for arr in [rings, cones, texts, marks]:
+	for arr in [rings, cones, texts, marks, slashes]:
 		for i in range(arr.size() - 1, -1, -1):
 			arr[i]["t"] = float(arr[i]["t"]) + dt
 			if float(arr[i]["t"]) >= float(arr[i]["dur"]):
@@ -96,6 +105,32 @@ func _draw() -> void:
 			for j in 3:
 				var d := ln * (0.5 + j * 0.25)
 				draw_rect(Rect2(((cn["p"] as Vector2) + Vector2.from_angle(a) * d).floor(), Vector2(2, 2)), col3)
+	if chew_on:
+		var cp := chew_p.floor()
+		draw_circle(cp, 5.0, Color(Pal.INK, 0.6))
+		draw_arc(cp, 3.5, -PI * 0.5, -PI * 0.5 + TAU * clampf(chew_frac, 0.0, 1.0), 16, Pal.e("salmon"), 2.0)
+	for sl in slashes:
+		var u := float(sl["t"]) / float(sl["dur"])
+		var r := float(sl["r"])
+		var span := 2.3
+		var n := int(r * 2.4)
+		var reveal := minf(1.0, u * 2.2)
+		var base_a := (sl["dir"] as Vector2).angle() - span * 0.5
+		var cen: Vector2 = (sl["p"] as Vector2) - (sl["dir"] as Vector2) * r * 0.45
+		var col6: Color = sl["c"]
+		col6.a = 1.0 if u < 0.55 else (1.0 - u) / 0.45
+		for k in int(n * reveal):
+			var f := float(k) / n
+			if sl["flip"]:
+				f = 1.0 - f
+			var thick := roundf(3.2 * sin(PI * f) * (1.0 - u * 0.5))
+			if thick < 1.0:
+				continue
+			var a := base_a + span * f
+			var v := Vector2.from_angle(a)
+			for j in int(thick):
+				var q := (cen + v * (r - j)).floor()
+				draw_rect(Rect2(q, Vector2.ONE), col6 if j < thick - 1 else Color(Pal.c("red", 3), col6.a))
 	for b in bits:
 		var s := float(b["s"])
 		var col4: Color = b["c"]

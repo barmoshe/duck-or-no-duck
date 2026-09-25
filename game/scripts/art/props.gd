@@ -13,71 +13,97 @@ static func tex(name: String) -> Texture2D:
 
 
 static func image(name: String) -> Image:
+	if name.begins_with("food_"):
+		return _food(name)
 	var p: Px
 	match name:
-		"tree":
-			p = Px.make(28, 34)
-			p.rect(12, 22, 4, 10, Pal.c("brown", 1))
-			p.circle(14, 14, 11, Pal.c("green", 1))
-			p.circle(9, 17, 7, Pal.c("green", 2))
-			p.circle(19, 11, 7, Pal.c("green", 2))
-			p.circle(13, 9, 6, Pal.c("green", 3))
-			for q in [Vector2(8, 12), Vector2(18, 18), Vector2(14, 6)]:
-				p.put(int(q.x), int(q.y), Pal.c("green", 4))
-		"bush":
-			p = Px.make(20, 16)
-			p.circle(10, 9, 7, Pal.c("green", 2))
-			p.circle(6, 10, 5, Pal.c("green", 1))
-			p.circle(13, 7, 4, Pal.c("green", 3))
-			p.put(7, 7, Pal.c("red", 2))
-			p.put(13, 11, Pal.c("red", 2))
+		"tree", "tree_autumn", "tree_blossom":
+			return _tree(name)
+		"bush", "bush_berry":
+			p = Px.make(26, 22)
+			_canopy(p, 13.0, 11.0, 11.0, 8.5, "crown_green", 7, 6)
+			if name == "bush_berry":
+				for q in [Vector2i(8, 9), Vector2i(15, 7), Vector2i(18, 12), Vector2i(11, 14)]:
+					_berry(p, q, "red")
+			p.outline(Pal.INK, 0.55)
+			return p.img
 		"stump":
 			p = Px.make(16, 14)
 			p.rect(3, 4, 10, 8, Pal.c("brown", 1))
 			p.ellipse(8, 4, 5, 2, Pal.c("brown", 3))
 			p.put(8, 4, Pal.c("brown", 1))
 		"rock":
-			p = Px.make(22, 18)
-			p.ellipse(11, 11, 9, 6, Pal.c("grey", 2))
-			p.ellipse(9, 9, 6, 4, Pal.c("grey", 3))
-			p.put(13, 12, Pal.c("grey", 1))
+			p = Px.make(26, 18)
+			_stone(p, 12.0, 10.0, 9.0, 6.0)
+			_stone(p, 19.0, 13.0, 5.0, 3.5)
+			_stone(p, 6.0, 14.0, 3.5, 2.5)
+			p.outline(Pal.INK, 0.5)
+			return p.img
+		"stones":
+			p = Px.make(16, 9)
+			_stone(p, 5.0, 5.0, 4.0, 2.8)
+			_stone(p, 11.0, 6.0, 3.0, 2.0)
+			p.outline(Pal.INK, 0.5)
+			return p.img
 		"driftwood":
 			p = Px.make(26, 12)
 			p.line(3, 8, 22, 4, Pal.c("sandy", 1), 3.0)
 			p.line(15, 6, 19, 1, Pal.c("sandy", 1), 1.0)
 		"pine":
-			p = Px.make(22, 34)
-			p.rect(10, 26, 3, 6, Pal.c("brown", 1))
-			for k in 3:
-				var y0 := 4 + k * 7
-				var hw := 4 + k * 3
-				p.poly(PackedVector2Array([Vector2(11, y0 - 2), Vector2(11 + hw, y0 + 8), Vector2(11 - hw, y0 + 8)]), Pal.c("teal", 2))
-				p.line(11 - hw + 1, y0 + 7, 11 + hw - 1, y0 + 7, Pal.c("snow", 4), 1.0)
-			p.put(11, 2, Pal.c("snow", 4))
+			p = Px.make(30, 44)
+			p.rect(13, 34, 4, 8, Pal.e("bark"))
+			p.rect(13, 34, 1, 8, Pal.e("plum"))
+			for k in 4:
+				var y0 := 3 + k * 8
+				var hw := 5 + k * 3
+				var base := y0 + 10
+				p.poly(PackedVector2Array([Vector2(15, y0), Vector2(15 + hw + 0.5, base), Vector2(15 - hw - 0.5, base)]), Pal.e("pine"))
+				p.poly(PackedVector2Array([Vector2(15, y0), Vector2(15 - hw - 0.5, base), Vector2(15 - 1, base)]), Pal.e("grass"))
+				# a snow cap resting on each tier
+				for x in range(15 - hw + 1, 15 + hw):
+					var sy := base - 1 - int(abs(sin(x * 1.7 + k)) * 1.6)
+					p.put(x, sy, Pal.e("white"))
+					p.put(x, sy - 1, Pal.e("mist") if x > 15 else Pal.e("white"))
+			p.circle(15, 3, 1.6, Pal.e("white"))
+			p.outline(Pal.INK, 0.5)
+			return p.img
 		"ice_rock":
 			p = Px.make(20, 20)
 			p.poly(PackedVector2Array([Vector2(4, 17), Vector2(7, 4), Vector2(12, 1), Vector2(16, 8), Vector2(17, 17)]), Pal.c("blue", 3))
 			p.line(9, 5, 11, 14, Pal.c("blue", 4), 1.0)
 		"reeds":
-			p = Px.make(14, 20)
-			for k in 4:
-				var x := 3 + k * 3
-				p.line(x, 19, x + (k - 2) * 0.6, 4 + (k % 2) * 3, Pal.c("green", 2 + k % 2), 1.0)
-			p.rect(5, 4, 2, 4, Pal.c("brown", 1))
-			p.rect(10, 6, 2, 4, Pal.c("brown", 1))
+			p = Px.make(18, 26)
+			for k in 7:
+				var x := 3.0 + k * 2.0
+				var top := 6.0 + (k * 5 % 7)
+				p.line(x, 25, x + (k - 3) * 0.7, top, Pal.e("grass") if k % 2 == 0 else Pal.e("leaf"), 1.0)
+			for q in [Vector2i(5, 3), Vector2i(10, 1), Vector2i(14, 5)]:
+				p.rect(q.x, q.y, 2, 5, Pal.e("bark"))
+				p.put(q.x, q.y, Pal.e("leather"))
+				p.put(q.x, q.y - 1, Pal.e("grass"))
+			p.outline(Pal.INK, 0.45)
+			return p.img
 		"cattail":
 			p = Px.make(8, 18)
 			p.line(4, 17, 4, 5, Pal.c("green", 2), 1.0)
 			p.rect(3, 3, 3, 5, Pal.c("brown", 1))
-		"lily":
-			p = Px.make(14, 10)
-			p.ellipse(7, 5, 6, 4, Pal.c("green", 3))
-			p.line(7, 5, 12, 3, Pal.c("green", 1), 1.0)
-		"lily_flower":
-			p = Px.make(14, 10)
-			p.ellipse(7, 5, 6, 4, Pal.c("green", 3))
-			p.circle(6, 4, 2, Pal.c("pink", 3))
-			p.put(6, 4, Pal.c("gold", 3))
+		"lily", "lily_flower":
+			p = Px.make(24, 16)
+			p.ellipse(12, 9, 10.5, 6, Pal.e("grass"))
+			p.ellipse(11, 8, 9, 4.8, Pal.e("leaf"))
+			p.ellipse(9, 7, 4, 2, Pal.e("sprout"))
+			# the notch and the veins
+			p.poly(PackedVector2Array([Vector2(12, 9), Vector2(23, 6), Vector2(23, 10)]), Color(0, 0, 0, 0))
+			for x in range(12, 24):
+				for y in range(4, 12):
+					if (y - 9.0) > -(x - 12.0) * 3.0 / 11.0 and (y - 9.0) < (x - 12.0) * 1.0 / 11.0:
+						p.px[y * p.w + x] = Color(0, 0, 0, 0)
+			p.line(12, 9, 5, 6, Pal.e("fern"), 1.0)
+			p.line(12, 9, 7, 13, Pal.e("fern"), 1.0)
+			if name == "lily_flower":
+				_lotus(p, Vector2i(9, 6))
+			p.outline(Pal.e("deep"), 0.5)
+			return p.img
 		"ripple":
 			p = Px.make(12, 6)
 			p.line(1, 3, 5, 2, Pal.c("blue", 3), 1.0)
@@ -89,11 +115,14 @@ static func image(name: String) -> Image:
 				p.put(int(q.x), int(q.y), Pal.c(["gold", "pink", "snow"][int(q.x) % 3], 3))
 			return p.img
 		"grass", "grass_dry":
-			p = Px.make(8, 6)
-			var gc := Pal.c("green", 3) if name == "grass" else Pal.c("sandy", 1)
-			p.line(2, 5, 1, 1, gc, 1.0)
-			p.line(4, 5, 4, 0, gc, 1.0)
-			p.line(6, 5, 7, 2, gc, 1.0)
+			p = Px.make(9, 6)
+			var gc := Pal.e("grass") if name == "grass" else Pal.e("tan")
+			var gl := Pal.e("fern") if name == "grass" else Pal.e("sand")
+			for q in [Vector2i(1, 2), Vector2i(4, 0), Vector2i(7, 1)]:
+				p.line(q.x, 5, q.x, q.y, gc, 1.0)
+				p.put(q.x, q.y, gl)
+			p.put(2, 3, gc)
+			p.put(6, 3, gc)
 			return p.img
 		"mushroom":
 			p = Px.make(8, 8)
@@ -383,9 +412,192 @@ static func image(name: String) -> Image:
 			p.line(0, 3, 6, 3, Pal.c("gold", 3), 1.0)
 			p.put(3, 3, Pal.e("white"))
 			return p.img
+		"fish_pool", "fish_pool_2":
+			# dark ripples with fish shadows darting under them
+			p = Px.make(26, 14)
+			var big := 1.0 if name == "fish_pool_2" else 0.0
+			for x in range(0, 26):
+				for y in range(0, 14):
+					var dx := (x + 0.5 - 13.0) / (8.0 + big)
+					var dy := (y + 0.5 - 7.0) / (3.8 + big * 0.5)
+					var d2 := dx * dx + dy * dy
+					if d2 < 1.0:
+						p.px[y * p.w + x] = Color(Pal.e("navy"), 0.55) if d2 < 0.6 else Color(Pal.e("navy"), 0.3)
+			p.ellipse(10 + big * 2, 7, 2.5, 1.2, Color(Pal.INK, 0.7))
+			p.ellipse(16 - big * 2, 8, 2.0, 1.0, Color(Pal.INK, 0.7))
+			var rx := 11.0 + big
+			for a in 24:
+				if a % 6 != 0:
+					var ang := TAU * a / 24.0
+					p.put(int(13 + cos(ang) * rx), int(7 + sin(ang) * rx * 0.5), Pal.e("foam"))
+			return p.img
 		_:
 			p = Px.make(6, 6)
 			p.rect(0, 0, 6, 6, Color(1, 0, 1))
 	p.shade(0.14, 0.18)
 	p.outline(Pal.INK, 0.3)
+	return p.img
+
+
+# ------------------------------------------------------------------ foliage helpers
+## A fluffy crown: leaf clumps around an oval, sorted back to front, each lit from the
+## top-left with a dark rim on its lower right, so the crown reads as soft bunches.
+static func _canopy(p: Px, cx: float, cy: float, rx: float, ry: float, ramp: String, ring: int, seed_i: int) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_i
+	var cols := Pal.ramp(ramp)
+	var clumps: Array[Vector3] = []
+	for k in ring:
+		var a := TAU * k / ring + rng.randf_range(-0.25, 0.25)
+		clumps.append(Vector3(cx + cos(a) * rx * 0.6, cy + sin(a) * ry * 0.58, rng.randf_range(0.38, 0.48) * minf(rx, ry * 1.25)))
+	for k in maxi(2, int(ring / 2)):
+		var a2 := rng.randf() * TAU
+		clumps.append(Vector3(cx + cos(a2) * rx * 0.22, cy + sin(a2) * ry * 0.2 - 1.0, rng.randf_range(0.42, 0.52) * minf(rx, ry * 1.25)))
+	clumps.sort_custom(func(u: Vector3, v: Vector3) -> bool: return u.y < v.y)
+	for c in clumps:
+		var r := c.z
+		for y in range(floori(c.y - r), ceili(c.y + r) + 1):
+			for x in range(floori(c.x - r), ceili(c.x + r) + 1):
+				var dx := (x + 0.5 - c.x) / r
+				var dy := (y + 0.5 - c.y) / r
+				var d2 := dx * dx + dy * dy
+				if d2 > 1.0:
+					continue
+				var lit := -(dx * 0.55 + dy * 0.85)
+				var step := 1
+				if d2 > 0.7 and lit < -0.15:
+					step = 0
+				elif lit > 0.42 and d2 < 0.55:
+					step = 3
+				elif lit > -0.05:
+					step = 2
+				# the underside of the whole crown sits in shade
+				if (y - cy) / ry > 0.55 and step > 0:
+					step -= 1
+				var h := fposmod(sin(x * 12.9898 + y * 78.233) * 43758.5453, 1.0)
+				if step == 3 and h > 0.86:
+					step = 4
+				elif step == 2 and h > 0.93:
+					step = 3
+				p.put(x, y, cols[step])
+
+
+static func _tree(name: String) -> Image:
+	var p := Px.make(52, 56)
+	var ramp: String = {"tree": "crown_green", "tree_autumn": "crown_autumn", "tree_blossom": "crown_blossom"}[name]
+	# trunk with little root flares
+	p.rect(22, 34, 8, 19, Pal.e("bark"))
+	p.rect(22, 34, 2, 19, Pal.e("plum"))
+	p.rect(27, 36, 2, 15, Pal.e("leather"))
+	p.rect(19, 50, 4, 3, Pal.e("bark"))
+	p.rect(29, 50, 4, 3, Pal.e("bark"))
+	p.rect(19, 52, 1, 1, Pal.e("plum"))
+	_canopy(p, 26.0, 22.0, 23.0, 18.0, ramp, 10, name.hash())
+	if name != "tree_autumn":
+		var fruit := "red" if name == "tree" else "orange"
+		var rng := RandomNumberGenerator.new()
+		rng.seed = name.hash() + 3
+		for k in 6 if name == "tree_blossom" else 4:
+			var a := rng.randf() * TAU
+			var q := Vector2i(int(26 + cos(a) * rng.randf_range(4, 18)), int(22 + sin(a) * rng.randf_range(3, 13)))
+			_berry(p, q, fruit)
+	p.outline(Pal.INK, 0.55)
+	return p.img
+
+
+static func _berry(p: Px, q: Vector2i, ramp: String) -> void:
+	p.rect(q.x, q.y, 2, 2, Pal.c(ramp, 2))
+	p.put(q.x, q.y, Pal.c(ramp, 4))
+	p.put(q.x + 1, q.y + 1, Pal.c(ramp, 1))
+	p.put(q.x - 1, q.y, Pal.INK.lerp(Pal.c(ramp, 1), 0.4))
+	p.put(q.x, q.y + 2, Pal.INK.lerp(Pal.c(ramp, 1), 0.4))
+
+
+static func _stone(p: Px, cx: float, cy: float, rx: float, ry: float) -> void:
+	p.ellipse(cx, cy, rx, ry, Pal.e("steel"))
+	p.ellipse(cx - 0.5, cy - 0.8, rx - 1.0, ry - 1.2, Pal.e("slate"))
+	p.ellipse(cx - rx * 0.35, cy - ry * 0.4, rx * 0.4, ry * 0.3, Pal.e("mist"))
+
+
+static func _lotus(p: Px, q: Vector2i) -> void:
+	for d in [Vector2i(-2, 0), Vector2i(2, 0), Vector2i(0, -2), Vector2i(-1, -1), Vector2i(1, -1)]:
+		p.rect(q.x + d.x - 1, q.y + d.y - 1, 2, 2, Pal.e("salmon"))
+	p.put(q.x - 3, q.y, Pal.e("rose"))
+	p.put(q.x + 2, q.y, Pal.e("rose"))
+	p.rect(q.x - 1, q.y - 2, 2, 2, Pal.e("petal"))
+	p.put(q.x, q.y, Pal.e("lemon"))
+	p.put(q.x - 1, q.y, Pal.e("amber"))
+
+
+# ------------------------------------------------------------------ food pickups
+## "food_<kind>_<rarity>" (apple, pear, snowberry, meat, fish; rarity 0..3) or "food_heart".
+## Rarer food is drawn a little bigger with a colored rim and halo; legendary turns gold.
+static func _food(name: String) -> Image:
+	var p := Px.make(16, 15)
+	var parts := name.split("_")
+	var kind := parts[1]
+	var rar := int(parts[2]) if parts.size() > 2 else 0
+	var k := 1.0 + rar * 0.1
+	var cx := 8.0
+	var cy := 8.0
+	match kind:
+		"heart":
+			for q in [Vector2(6, 6), Vector2(10, 6)]:
+				p.circle(q.x, q.y, 2.6, Pal.e("red"))
+			p.poly(PackedVector2Array([Vector2(3.4, 6.8), Vector2(12.6, 6.8), Vector2(8, 12)]), Pal.e("red"))
+			p.put(5, 5, Pal.e("white"))
+			p.put(6, 5, Pal.e("peach"))
+			p.put(10, 9, Pal.e("wine"))
+		"apple":
+			p.circle(cx, cy + 1, 3.6 * k, Pal.e("red"))
+			p.circle(cx + 0.8, cy + 1.8, 2.4 * k, Pal.e("wine"))
+			p.circle(cx - 0.4, cy + 0.6, 2.4 * k, Pal.e("red"))
+			p.put(int(cx) - 2, int(cy) - 1, Pal.e("salmon"))
+			p.put(int(cx) - 1, int(cy) - 2, Pal.e("peach"))
+			p.line(cx, cy - 2.5 * k, cx + 1, cy - 4.5 * k, Pal.e("bark"), 1.0)
+			p.put(int(cx) + 2, int(cy - 4 * k), Pal.e("leaf"))
+			p.put(int(cx) + 3, int(cy - 4 * k), Pal.e("grass"))
+		"pear":
+			p.ellipse(cx, cy + 1, 3.0 * k, 3.8 * k, Pal.e("rose"))
+			p.ellipse(cx + 0.7, cy + 1.8, 2.0 * k, 2.8 * k, Pal.e("grape"))
+			p.ellipse(cx - 0.5, cy + 0.4, 2.0 * k, 2.6 * k, Pal.e("rose"))
+			p.put(int(cx) - 1, int(cy) - 1, Pal.e("salmon"))
+			for q in [Vector2i(0, 2), Vector2i(2, 0), Vector2i(-1, 4)]:
+				p.put(int(cx) + q.x, int(cy) + q.y, Pal.e("peach"))
+			p.rect(int(cx) - 1, int(cy - 4 * k), 3, 1, Pal.e("leaf"))
+		"snowberry":
+			for q in [Vector2(cx - 2, cy + 2), Vector2(cx + 2, cy + 2), Vector2(cx, cy - 0.5)]:
+				p.circle(q.x, q.y, 2.3 * k, Pal.e("sky"))
+				p.put(int(q.x) - 1, int(q.y) - 1, Pal.e("white"))
+			p.line(cx, cy - 2.5, cx + 2, cy - 4.5, Pal.e("pine"), 1.0)
+			p.put(int(cx) + 3, int(cy) - 4, Pal.e("leaf"))
+		"meat":
+			p.ellipse(cx - 1, cy, 3.6 * k, 3.0 * k, Pal.e("red"))
+			p.ellipse(cx - 1.5, cy - 0.5, 2.6 * k, 2.0 * k, Pal.e("salmon"))
+			p.put(int(cx) - 3, int(cy) - 2, Pal.e("peach"))
+			p.line(cx + 2, cy + 1, cx + 5, cy + 4, Pal.e("mist"), 1.0)
+			p.circle(cx + 5.5, cy + 4.5, 1.2, Pal.e("white"))
+			p.put(int(cx) + 6, int(cy) + 3, Pal.e("white"))
+		"fish":
+			p.ellipse(cx - 0.5, cy, 4.4 * k, 2.4 * k, Pal.e("sky"))
+			p.ellipse(cx - 1, cy - 0.6, 3.4 * k, 1.2 * k, Pal.e("cyan"))
+			p.line(cx - 3, cy + 1.5, cx + 2, cy + 1.5, Pal.e("navy"), 1.0)
+			p.poly(PackedVector2Array([Vector2(cx + 3, cy), Vector2(cx + 6.5, cy - 3), Vector2(cx + 6.5, cy + 3)]), Pal.e("sky"))
+			p.put(int(cx) - 3, int(cy) - 1, Pal.INK)
+	if rar == 3:
+		# legendary: gilded
+		for i in p.px.size():
+			var c := p.px[i]
+			if c.a > 0.5:
+				p.px[i] = c.lerp(Pal.e("amber"), 0.45).lightened(0.08)
+	if rar == 0 or kind == "heart":
+		p.outline(Pal.INK, 0.35)
+	else:
+		var g := Pal.e(String(Foods.GLOW[rar]))
+		p.outline(Pal.INK, 0.35)
+		p.outline(g, 0.0)
+		p.outline(Color(g, 0.4), 0.0)
+	if rar == 3:
+		for q in [Vector2i(2, 2), Vector2i(13, 4), Vector2i(12, 13)]:
+			p.put(q.x, q.y, Pal.e("white"))
 	return p.img

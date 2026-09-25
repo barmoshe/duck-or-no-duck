@@ -33,8 +33,14 @@ var player: Actor
 var actors: Array[Actor] = []
 var grid := {}
 var obst_grid := {}
-var foods: Array = []  # {n, p, v, xp, kind, heal, mut, life, scav}
-var plants: Array = []  # {n, p, alive, t, kind}
+var tall_props: Array = []  # trees and pines, faded when the player walks behind them
+var foods: Array = []  # {n, p, v, z, vz, xp, type, rar, mut, life, bob, scav}
+var sources: Array = []  # fruit trees, bushes, cacti: {n, p, o, stock, max, t, shed, shake, fruit}
+var pools: Array = []  # fish pools: {n, p, stock, t, anim}
+var carcass_tex := {}  # look key -> the body lying on its back
+var tips := {}  # one-time food tips already shown
+var rum_t := 0.0  # Ruminant: seconds of calm chewing
+var rum_cd := 0.0
 var shrooms: Array = []  # {n, p, fx, good}
 var burrows: Array = []  # {n, p}
 var pois: Array = []  # {n, mark, p, kind, used}
@@ -112,7 +118,8 @@ func build(seed_value: int, r: Run) -> void:
 	map.generate(seed_value)
 	_build_ground()
 	_build_props()
-	_build_plants()
+	_build_food_sources()
+	_build_pools()
 	_build_pois()
 	_build_burrows()
 	player = Actor.new()
@@ -143,11 +150,16 @@ func clear() -> void:
 		for c in n.get_children():
 			c.queue_free()
 	foods.clear()
-	plants.clear()
+	sources.clear()
+	pools.clear()
+	tips.clear()
+	rum_t = 0.0
+	rum_cd = 0.0
 	shrooms.clear()
 	burrows.clear()
 	pois.clear()
 	obst_grid.clear()
+	tall_props.clear()
 	grid.clear()
 	player = null
 	player_look_key = ""
@@ -208,7 +220,15 @@ func _build_props() -> void:
 		sh.position = (o["p"] as Vector2).floor() + Vector2(1, 0)
 		sh.z_index = -9
 		add_child(sh)
-		_sprite(Props.tex(kind), o["p"], ents, kind in ["tree", "pine", "bush", "cactus"])
+		var tex_name := kind
+		if kind == "tree":
+			var roll := rng.randf()
+			tex_name = "tree" if roll < 0.5 else ("tree_autumn" if roll < 0.75 else "tree_blossom")
+		elif kind == "bush" and rng.randf() < 0.4:
+			tex_name = "bush_berry"
+		o["n"] = _sprite(Props.tex(tex_name), o["p"], ents, kind in ["tree", "pine", "bush", "cactus"])
+		if kind in ["tree", "pine"]:
+			tall_props.append(o)
 		var k := _gkey(o["p"])
 		if not obst_grid.has(k):
 			obst_grid[k] = []
@@ -217,24 +237,50 @@ func _build_props() -> void:
 		var kind2 := String(d["kind"])
 		if kind2 == "lily" and rng.randf() < 0.2:
 			kind2 = "lily_flower"
+		if kind2 == "pebbles" and map.biome_at(d["p"]) in [0, 1]:
+			kind2 = "stones"
 		var tall := kind2 in ["reeds", "cattail", "tall_grass"]
 		_sprite(Props.tex(kind2), d["p"], ents if tall else decor_layer, tall or kind2 in ["grass", "flowers"])
 
 
-func _build_plants() -> void:
-	# fruit grows in little clusters around trees and bushes
-	for i in 220:
-		var o: Dictionary = map.obstacles[rng.randi() % map.obstacles.size()]
-		var p: Vector2 = (o["p"] as Vector2) + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(10.0, 26.0)
-		if map.water_at(p) != 0 or map.is_wall(p):
+## Fruit comes from trees, bushes and cacti (and snowy pines): each holds a small stock
+## that regrows, sheds a piece now and then, and drops fruit when something bumps it.
+func _build_food_sources() -> void:
+	for o in map.obstacles:
+		var kind := String(o["kind"])
+		if not kind in ["tree", "bush", "cactus", "pine"]:
 			continue
-		var b := map.biome_at(p)
-		var kind := "fruit" if b in [0, 1] else ("seed" if b == 2 else "berry")
-		var s := Sprite2D.new()
-		s.texture = Props.tex(kind)
-		s.position = p.floor()
-		food_layer.add_child(s)
-		plants.append({"n": s, "p": p, "alive": true, "t": 0.0, "kind": kind})
+		var mx := {"tree": 3, "bush": 2, "cactus": 2, "pine": 2}[kind] as int
+		var src := {"n": o.get("n"), "p": o["p"], "o": o, "stock": mx, "max": mx, "t": rng.randf_range(10.0, 22.0),
+			"shed": rng.randf_range(4.0, 30.0), "shake": 0.0, "cd": 0.0,
+			"fruit": Foods.FRUIT_OF_BIOME[clampi(map.biome_at(o["p"]), 0, 3)], "tall": kind in ["tree", "pine"]}
+		o["src"] = src
+		sources.append(src)
+		# the world starts with windfall under most of them
+		if rng.randf() < 0.75:
+			_drop_fruit(src, false)
+
+
+## A fish pool: dark ripples in the water where fish jump out when you swim close.
+func _build_pools() -> void:
+	var tries := 0
+	while pools.size() < 34 and tries < 3000:
+		tries += 1
+		var p := Vector2(rng.randf_range(80, MapGen.SIZE - 80), rng.randf_range(80, MapGen.SIZE - 80))
+		if map.water_at(p) == 0 or map.is_wall(p) or map.biome_at(p) == 3:
+			continue
+		var ok := true
+		for q in pools:
+			if (q["p"] as Vector2).distance_to(p) < 110.0:
+				ok = false
+				break
+		if not ok:
+			continue
+		var n := Sprite2D.new()
+		n.texture = Props.tex("fish_pool")
+		n.position = p.floor()
+		decor_layer.add_child(n)
+		pools.append({"n": n, "p": p, "stock": 2, "t": 0.0, "anim": rng.randf() * 3.0})
 
 
 func _build_pois() -> void:
@@ -467,7 +513,7 @@ func near(p: Vector2, radius: float) -> Array:
 	for x in range(k0.x, k1.x + 1):
 		for y in range(k0.y, k1.y + 1):
 			for a in grid.get(Vector2i(x, y), []):
-				if not a.dead and (a as Actor).position.distance_squared_to(p) <= r2:
+				if is_instance_valid(a) and not a.dead and (a as Actor).position.distance_squared_to(p) <= r2:
 					out.append(a)
 	return out
 
@@ -520,6 +566,9 @@ func _collide() -> void:
 					a.position = op + dd.normalized() * need
 					if a.dash_t > 0.0:
 						a.set_meta("bonk", true)
+					# bumping a fruit tree, bush or cactus shakes fruit loose
+					if o.has("src") and (a.is_player or a.r >= 9.0):
+						shake_source(o["src"], a.dash_t > 0.0)
 		if map.is_wall(a.position):
 			var c := Vector2(MapGen.SIZE, MapGen.SIZE) * 0.5
 			a.position += (c - a.position).normalized() * 3.0
@@ -540,37 +589,230 @@ func _collide() -> void:
 
 
 # ------------------------------------------------------------------ food
-func drop_food(p: Vector2, xp: float, big: bool, fish: bool, scav: bool) -> void:
-	var luck := float(run.stats["luck"]) + run.duck_parts() * 1.5
+## Animals drop meat (fish-like animals drop fish); each piece rolls a rarity.
+func drop_food(p: Vector2, xp: float, big: bool, fish: bool, scav: bool, source: String = "animal") -> void:
 	var pieces := clampi(int(xp / 4.0) + 1, 1, 6)
+	if big:
+		pieces = mini(pieces + 1, 7)
 	for i in pieces:
-		var kind := "fish" if fish else ("meat_big" if big and i == 0 else "meat")
-		var val := xp / pieces
-		var heal := 0.0
-		if rng.randf() < 0.03 + luck * 0.012:
-			kind = "meat_gold"
-			val *= 3.0
-		elif rng.randf() < 0.07:
-			kind = "sparkle_food"
-			heal = 0.12
-		_add_food(p, kind, val, heal, 0, scav)
+		_roll_food(p, "fish" if fish else "meat", xp / pieces, source, scav)
+
+
+func _luck() -> float:
+	return float(run.stats["luck"]) + run.duck_parts() * 1.5
+
+
+## Roll a rarity (and maybe a heart) for one piece of food and put it in the world.
+func _roll_food(p: Vector2, type: String, xp: float, source: String, scav: bool = false, variant: String = "", z: float = 0.0) -> Dictionary:
+	var rar := Foods.roll(rng, source, _luck())
+	if rng.randf() < Foods.heart_chance(rar, player.hp / maxf(1.0, player.max_hp) if valid(player) else 1.0):
+		return spawn_food(p, "heart", 1.0, 0, false, "", z)
+	return spawn_food(p, type, xp, rar, scav, variant, z)
+
+
+func spawn_food(p: Vector2, type: String, xp: float, rar: int, scav: bool = false, variant: String = "", z: float = 0.0) -> Dictionary:
+	var s := Sprite2D.new()
+	s.texture = Props.tex(Foods.sprite_name(type, variant if variant != "" else "apple", rar))
+	s.position = p.floor()
+	food_layer.add_child(s)
+	var life: float = Foods.LIFE[rar] * (1.0 + float(run.stats["omni"]) * 0.25)
+	var f := {"n": s, "p": p, "v": Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(30.0, 80.0), "z": z, "vz": 0.0,
+		"xp": xp, "type": type, "rar": rar, "mut": 0, "life": life, "bob": rng.randf() * 6.0, "scav": scav}
+	foods.append(f)
+	return f
 
 
 func drop_mutagen(p: Vector2, n: int) -> void:
 	for i in n:
-		_add_food(p, "mutagen", 0.0, 0.0, 1, false)
+		var s := Sprite2D.new()
+		s.texture = Props.tex("mutagen")
+		s.position = p.floor()
+		food_layer.add_child(s)
+		foods.append({"n": s, "p": p, "v": Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(30.0, 80.0), "z": 0.0, "vz": 0.0,
+			"xp": 0.0, "type": "mutagen", "rar": 0, "mut": 1, "life": 40.0, "bob": rng.randf() * 6.0, "scav": false})
 
 
-func _add_food(p: Vector2, kind: String, val: float, heal: float, mut: int, scav: bool) -> void:
+## Vegans can't eat meat or fish: it stays on the ground for the animals.
+func can_eat(f: Dictionary) -> bool:
+	if float(run.stats["vegan"]) > 0.0 and String(f["type"]) in ["meat", "fish", "carcass"]:
+		return false
+	return true
+
+
+## A big kill leaves its body: stay close to chew it, bite by bite, before a scavenger does.
+func _make_carcass(a: Actor, xp: float, fish: bool, scav: bool, source: String) -> void:
+	var key := Anatomy.key_of(a.look)
+	if not carcass_tex.has(key):
+		var img: Image = (a.frames["idle"][0] as Texture2D).get_image()
+		img = img.get_region(img.get_used_rect())
+		img.flip_y()
+		for y in img.get_height():
+			for x in img.get_width():
+				var c := img.get_pixel(x, y)
+				if c.a > 0.0:
+					var g := c.get_luminance()
+					img.set_pixel(x, y, Color(c.lerp(Color(g, g * 0.92, g * 0.9), 0.35).darkened(0.12), c.a))
+		carcass_tex[key] = ImageTexture.create_from_image(img)
+	var tex: Texture2D = carcass_tex[key]
 	var s := Sprite2D.new()
-	s.texture = Props.tex(kind)
-	s.position = p.floor()
+	s.texture = tex
+	s.position = (a.position - Vector2(0, floorf(tex.get_size().y * 0.5) - 2)).floor()
 	food_layer.add_child(s)
-	foods.append({"n": s, "p": p, "v": Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(30.0, 80.0),
-		"xp": val, "kind": kind, "heal": heal, "mut": mut, "life": 30.0, "bob": rng.randf() * 6.0, "scav": scav})
+	var bites := clampi(int(xp / 4.0) + 2, 2, 8)
+	foods.append({"n": s, "p": a.position, "v": Vector2.ZERO, "z": 0.0, "vz": 0.0, "xp": xp * 1.2 / bites,
+		"type": "carcass", "meat": "fish" if fish else "meat", "rar": 0, "mut": 0, "life": 40.0, "bob": 0.0,
+		"scav": scav, "bites": bites, "max_bites": bites, "chew": 0.0, "src": source, "r": a.r})
+	if not scav:
+		_tip("carcass", "Big kills leave a carcass: stay close to chew it")
+
+
+func _tip(id: String, text: String) -> void:
+	if tips.has(id):
+		return
+	tips[id] = true
+	toast.emit(text)
+
+
+## One bite off a carcass: a rarity-rolled piece pops out toward whoever is chewing.
+func bite_carcass(f: Dictionary, toward: Vector2) -> void:
+	f["bites"] = int(f["bites"]) - 1
+	var p: Vector2 = f["p"]
+	var piece := _roll_food(p, String(f["meat"]), float(f["xp"]), String(f["src"]), bool(f["scav"]), "", 3.0)
+	piece["v"] = (toward - p).normalized() * 40.0
+	piece["vz"] = 50.0
+	fx.burst(p + Vector2(0, -4), Pal.e("red"), 4, 40.0, 1.0, 0.35, 100.0)
+	if int(f["bites"]) <= 0:
+		f["life"] = 0.0
+
+
+func on_player_hit() -> void:
+	rum_cd = 15.0
+	rum_t = 0.0
+
+
+## Ruminant: every 10 calm seconds, Progress equal to 4x your Prey affinity.
+func _ruminate(dt: float) -> void:
+	if float(run.stats["ruminant"]) <= 0.0:
+		return
+	if rum_cd > 0.0:
+		rum_cd -= dt
+		return
+	rum_t += dt
+	if rum_t >= 10.0:
+		rum_t = 0.0
+		var prey := int(run.affinity_points().get("prey", 0))
+		var gain := 4.0 * maxi(1, prey) * float(run.stats["ruminant"])
+		_gain_xp(gain)
+		fx.text(player.position + Vector2(0, -player.r * 2.2), "RUMINATE +%d" % roundi(gain), Pal.e("leaf"))
+
+
+## Fruit falls from a source: out of the crown with a little bounce, onto the ground.
+func _drop_fruit(src: Dictionary, falling: bool = true) -> void:
+	var tall: bool = src["tall"]
+	var ang := rng.randf_range(0.15, PI - 0.15)  # in front of (below) the trunk
+	var p: Vector2 = (src["p"] as Vector2) + Vector2(cos(ang) * rng.randf_range(8.0, 22.0), sin(ang) * rng.randf_range(4.0, 14.0))
+	if map.water_at(p) != 0 or map.is_wall(p):
+		p = (src["p"] as Vector2) + Vector2(rng.randf_range(-6, 6), 8)
+	var xp := Foods.FRUIT_XP * (1.0 + run.minute() * 0.04)
+	var f := _roll_food(p, "fruit", xp, "plant", false, String(src["fruit"]), (22.0 if tall else 10.0) if falling else 0.0)
+	f["v"] = Vector2.ZERO
+	f["life"] = float(f["life"]) + 15.0
+
+
+## Something bumped a fruit source: it shakes and lets go of some of its fruit.
+func shake_source(src: Dictionary, hard: bool = false) -> void:
+	if float(src["cd"]) > 0.0:
+		return
+	src["cd"] = 0.9
+	src["shake"] = 0.35
+	var n := mini(int(src["stock"]), (2 if hard else 1) + (1 if float(run.stats["pollen"]) > 0.0 else 0))
+	for i in n:
+		_drop_fruit(src)
+	src["stock"] = int(src["stock"]) - n
+	var leaf := Pal.e("leaf") if String(src["fruit"]) != "pear" else Pal.e("grass")
+	fx.burst((src["p"] as Vector2) + Vector2(0, -24 if src["tall"] else -8), leaf, 5 + n * 2, 40.0, 1.0, 0.6, 60.0)
+	if n > 0:
+		Sfx.play("pop", randf_range(1.2, 1.4), -8.0)
+
+
+func _food_sources(dt: float) -> void:
+	var grow := (3.0 if weather.kind == "rain" else 1.0) * (1.0 + float(run.stats["pollen"]) * 0.6)
+	var pp := player.position
+	for src in sources:
+		src["cd"] = maxf(0.0, float(src["cd"]) - dt)
+		if not tips.has("fruit") and int(src["stock"]) > 0 and (src["p"] as Vector2).distance_squared_to(pp) < 40.0 * 40.0:
+			_tip("fruit", "Bump trees and bushes to shake fruit loose")
+		if int(src["stock"]) < int(src["max"]):
+			src["t"] = float(src["t"]) - dt * grow
+			if float(src["t"]) <= 0.0:
+				src["stock"] = int(src["stock"]) + 1
+				src["t"] = rng.randf_range(18.0, 26.0)
+		# windfall: only near the player, so the ground doesn't fill up far away
+		if int(src["stock"]) > 0 and (src["p"] as Vector2).distance_squared_to(pp) < 420.0 * 420.0:
+			src["shed"] = float(src["shed"]) - dt * grow
+			if float(src["shed"]) <= 0.0:
+				src["shed"] = rng.randf_range(20.0, 36.0)
+				src["stock"] = int(src["stock"]) - 1
+				_drop_fruit(src)
+		if float(src["shake"]) > 0.0:
+			src["shake"] = maxf(0.0, float(src["shake"]) - dt)
+			var n = src["n"]
+			if n is Sprite2D:
+				var k := float(src["shake"])
+				(n as Sprite2D).position = (src["p"] as Vector2).floor() + Vector2(roundf(sin(k * 60.0) * k * 5.0), 0)
+	for pl in pools:
+		pl["anim"] = float(pl["anim"]) + dt
+		var n2: Sprite2D = pl["n"]
+		var has := int(pl["stock"]) > 0
+		n2.texture = Props.tex("fish_pool" if int(float(pl["anim"]) * 2.0) % 2 == 0 else "fish_pool_2")
+		n2.modulate.a = 1.0 if has else 0.35
+		if not has:
+			pl["t"] = float(pl["t"]) - dt
+			if float(pl["t"]) <= 0.0:
+				pl["stock"] = 2
+			continue
+		if not tips.has("fish") and (pl["p"] as Vector2).distance_squared_to(pp) < 90.0 * 90.0:
+			_tip("fish", "Swim over dark ripples: fish jump out")
+		if (pl["p"] as Vector2).distance_squared_to(pp) < 18.0 * 18.0 and not player.air:
+			_fish_jump(pl)
+
+
+## A fish jumps out of the pool and lands on the bank side of you.
+func _fish_jump(pl: Dictionary) -> void:
+	pl["stock"] = int(pl["stock"]) - 1
+	if int(pl["stock"]) <= 0:
+		pl["t"] = 30.0
+	var p: Vector2 = pl["p"]
+	var xp := Foods.FISH_POOL_XP * (1.0 + run.minute() * 0.05)
+	for i in 2:
+		var f := _roll_food(p, "fish", xp, "pool", false, "", 4.0)
+		f["v"] = Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(40.0, 70.0)
+		f["vz"] = 70.0
+	fx.burst(p, Pal.e("cyan"), 12, 60.0, 1.0, 0.5, 120.0)
+	fx.ring(p, 3.0, 16.0, 0.4, Pal.e("white"))
+	Sfx.play("splash", 1.2, -4.0)
+
+
+func _carcass_step(f: Dictionary, dt: float) -> void:
+	var p: Vector2 = f["p"]
+	var reach := float(f["r"]) + player.r + 8.0
+	if p.distance_squared_to(player.position) < reach * reach and not player.under and can_eat(f):
+		# chewing: fastest standing still, slower while moving
+		var still := player.vel.length() < 30.0
+		f["chew"] = float(f["chew"]) + dt * float(run.stats["feed"]) / 100.0 * (1.0 if still else 0.4)
+		fx.chew_p = p + Vector2(0, -float(f["r"]) * 2.0 - 6.0)
+		fx.chew_frac = float(f["chew"]) / 0.55
+		fx.chew_on = true
+		if float(f["chew"]) >= 0.55:
+			f["chew"] = 0.0
+			bite_carcass(f, player.position)
+			Sfx.play("chomp", randf_range(0.9, 1.05), -6.0)
 
 
 func _pickups(dt: float) -> void:
+	fx.chew_on = false
+	_ruminate(dt)
+	_food_sources(dt)
 	var pp := player.position
 	var mag := float(run.stats["magnet"]) * (1.0 + (run.radius() - 6.0) * 0.04)
 	for i in range(foods.size() - 1, -1, -1):
@@ -581,35 +823,44 @@ func _pickups(dt: float) -> void:
 			n.queue_free()
 			foods.remove_at(i)
 			continue
+		if String(f["type"]) == "carcass":
+			_carcass_step(f, dt)
+			if float(f["life"]) <= 0.0:
+				n.queue_free()
+				foods.remove_at(i)
+			elif float(f["life"]) < 4.0:
+				n.visible = int(float(f["life"]) * 8.0) % 2 == 0
+			continue
+		# falling out of a tree or jumping out of a pool
+		var z := float(f["z"])
+		if z > 0.0 or float(f["vz"]) > 0.0:
+			f["vz"] = float(f["vz"]) - 260.0 * dt
+			z = maxf(0.0, z + float(f["vz"]) * dt)
+			if z <= 0.0 and float(f["vz"]) < -40.0:
+				f["vz"] = -float(f["vz"]) * 0.3  # a little bounce
+				z = 0.01
+			elif z <= 0.0:
+				f["vz"] = 0.0
+			f["z"] = z
 		var to: Vector2 = pp - (f["p"] as Vector2)
 		var d := to.length()
-		if d < mag and not player.under:
+		var edible := can_eat(f)
+		if d < mag and not player.under and z <= 0.0 and edible:
 			f["v"] = (f["v"] as Vector2).lerp(to.normalized() * 180.0, minf(1.0, dt * 8.0))
 		else:
-			f["v"] = (f["v"] as Vector2) * maxf(0.0, 1.0 - dt * 5.0)
+			f["v"] = (f["v"] as Vector2) * maxf(0.0, 1.0 - dt * (1.5 if z > 0.0 else 5.0))
 		f["p"] = (f["p"] as Vector2) + (f["v"] as Vector2) * dt
 		f["bob"] = float(f["bob"]) + dt
-		n.position = ((f["p"] as Vector2) + Vector2(0, -roundf(absf(sin(float(f["bob"]) * 3.0)) * 2.0))).floor()
+		var bob := 0.0 if z > 0.0 else roundf(absf(sin(float(f["bob"]) * 3.0)) * (2.0 if int(f["rar"]) > 0 else 1.0))
+		n.position = ((f["p"] as Vector2) + Vector2(0, -bob - roundf(z))).floor()
 		if float(f["life"]) < 4.0:
 			n.visible = int(float(f["life"]) * 8.0) % 2 == 0
-		if d < player.r + 5.0 and not player.under:
+		if int(f["rar"]) == 3 and rng.randf() < dt * 3.0:
+			fx.burst(n.position + Vector2(rng.randf_range(-5, 5), rng.randf_range(-5, 3)), Pal.e("lemon"), 1, 8.0, 1.0, 0.4)
+		if d < player.r + 5.0 and not player.under and z <= 0.0 and edible:
 			_eat(f)
 			n.queue_free()
 			foods.remove_at(i)
-	for pl in plants:
-		if not pl["alive"]:
-			pl["t"] = float(pl["t"]) - dt * (3.0 if weather.kind == "rain" else 1.0)
-			if float(pl["t"]) <= 0.0:
-				pl["alive"] = true
-				(pl["n"] as Sprite2D).visible = true
-			continue
-		if (pl["p"] as Vector2).distance_squared_to(pp) < pow(player.r + 5.0, 2) and not player.under:
-			eat_plant(pl)
-			_gain_xp(2.0 * (1.0 + (float(run.stats["food"]) + float(run.stats["fruit_xp"])) / 100.0))
-			var fh := float(run.stats["fruit_heal"])
-			if fh > 0.0:
-				player.hp = minf(player.max_hp, player.hp + fh)
-			Sfx.play("slurp", randf_range(1.1, 1.3), -8.0)
 	for i in range(shrooms.size() - 1, -1, -1):
 		var sm: Dictionary = shrooms[i]
 		var sn: Sprite2D = sm["n"]
@@ -622,38 +873,63 @@ func _pickups(dt: float) -> void:
 			var e: Array = Pois.SHROOMS[int(sm["i"])]
 			fx.text(pp + Vector2(0, -player.r * 2.5), String(e[0]).to_upper(), Pal.c("green", 4) if e[1] else Pal.c("red", 3))
 			apply_fx(e[2])
+			_gain_xp(3.0 * (1.0 + run.minute() * 0.05) * (1.0 + float(run.stats["shroom_xp"]) / 100.0))
 			Sfx.play("slurp", 0.8)
 			sn.queue_free()
 			shrooms.remove_at(i)
 
 
-func eat_plant(pl: Dictionary) -> void:
-	pl["alive"] = false
-	pl["t"] = rng.randf_range(25.0, 40.0)
-	(pl["n"] as Sprite2D).visible = false
+## An animal ate or stole this piece of food.
+func take_food(f: Dictionary) -> void:
+	f["life"] = 0.0
+
+
+## Progress a piece of food is worth to you: rarity x diet bonuses.
+func food_value(f: Dictionary) -> float:
+	var type := String(f["type"])
+	var bonus := float(run.stats["food"]) + float(run.stats["omni"]) * 12.0
+	match type:
+		"fish":
+			bonus += float(run.stats["fish_xp"])
+		"meat":
+			bonus += float(run.stats["meat_xp"])
+		"fruit":
+			bonus += float(run.stats["fruit_xp"]) + float(run.stats["vegan"]) * 150.0
+	if f.get("scav", false):
+		bonus += float(run.stats["scav_xp"])
+	return float(f["xp"]) * float(Foods.XP_MULT[int(f["rar"])]) * (1.0 + bonus / 100.0)
 
 
 func _eat(f: Dictionary) -> void:
+	var head := player.position + Vector2(0, -player.r * 2.0)
 	if int(f["mut"]) > 0:
 		run.mutagen += int(f["mut"])
-		fx.text(player.position + Vector2(0, -player.r * 2.0), "+1 MUTAGEN", Pal.c("green", 4))
+		fx.text(head, "+1 MUTAGEN", Pal.c("green", 4))
 		Sfx.play("mutagen")
 		return
-	var bonus := float(run.stats["food"])
-	match String(f["kind"]):
-		"fish":
-			bonus += float(run.stats["fish_xp"])
-		"meat", "meat_big", "meat_gold":
-			bonus += float(run.stats["meat_xp"])
-	if f.get("scav", false):
-		bonus += float(run.stats["scav_xp"])
-	_gain_xp(float(f["xp"]) * (1.0 + bonus / 100.0))
-	if float(f["heal"]) > 0.0:
-		player.hp = minf(player.max_hp, player.hp + player.max_hp * float(f["heal"]))
-		fx.text(player.position + Vector2(0, -player.r * 2.0), "+HP", Pal.c("pink", 3))
-	if String(f["kind"]) == "meat_gold":
-		fx.burst(player.position, Pal.c("gold", 4), 8, 40.0, 1.0, 0.5)
-	Sfx.play("slurp", randf_range(0.9, 1.1), -4.0)
+	var type := String(f["type"])
+	var rar := int(f["rar"])
+	if type == "heart":
+		var amt := player.max_hp * Foods.HEART_HEAL
+		player.hp = minf(player.max_hp, player.hp + amt)
+		fx.text(head, "+%d HP" % ceili(amt), Pal.e("salmon"))
+		fx.burst(player.position + Vector2(0, -player.r), Pal.e("salmon"), 6, 30.0)
+		Sfx.play("heal", 1.2, -4.0)
+		_gain_xp(float(f["xp"]))
+		return
+	var gain := food_value(f)
+	_gain_xp(gain)
+	run.food_eaten[type] = int(run.food_eaten.get(type, 0)) + 1
+	if type == "fruit":
+		var fh := float(run.stats["fruit_heal"]) + float(run.stats["vegan"]) * 4.0
+		if fh > 0.0:
+			player.hp = minf(player.max_hp, player.hp + fh)
+	var col := Pal.e(String(Foods.TYPE_COL.get(type, "white")))
+	if rar >= 2:
+		fx.text(head + Vector2(0, -9), String(Foods.RARITY[rar]).to_upper() + "!", Pal.e("rose") if rar == 2 else Pal.e("amber"), rar == 3)
+		fx.burst(player.position + Vector2(0, -player.r), Pal.e("amber") if rar == 3 else Pal.e("rose"), 6 + rar * 3, 50.0, 1.0, 0.5)
+	fx.text(head + Vector2(randf_range(-4, 4), 0), "+%d" % maxi(1, roundi(gain)), col)
+	Sfx.play("chomp" if type == "meat" else "slurp", randf_range(0.95, 1.1) + rar * 0.08, -5.0)
 
 
 func _gain_xp(v: float) -> void:
@@ -715,7 +991,8 @@ func apply_fx(e: Dictionary) -> void:
 		make_ally(a)
 	if e.has("fruit"):
 		for i in int(e["fruit"]):
-			_add_food(p.position + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(10, 40), "fruit", 2.5, 0.0, 0, false)
+			var fp := p.position + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(10, 40)
+			_roll_food(fp, "fruit", Foods.FRUIT_XP * (1.0 + run.minute() * 0.04), "plant", false, Foods.FRUIT_OF_BIOME[clampi(map.biome_at(fp), 0, 3)], 14.0)
 	if e.has("mushrooms"):
 		for i in int(e["mushrooms"]):
 			var sp := p.position + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(24, 90)
@@ -784,7 +1061,13 @@ func _reap() -> void:
 		fx.burst(a.position + Vector2(0, -a.r), Pal.c(String(a.look.get("ramp", "grey")), 3), 10 + int(a.r), 70.0, 1.0, 0.5)
 		if not a.is_ally and not a.is_boss:
 			var d := Species.get_def(a.species)
-			drop_food(a.position, a.xp_value * (1.0 + run.minute() * 0.04), a.r > 7.0, bool(d.get("fish", false)), not by_us)
+			var fxp := a.xp_value * (1.0 + run.minute() * 0.04)
+			var fsrc := "alpha" if a.alpha else "animal"
+			# big kills leave a carcass to chew; small ones pop straight into food
+			if a.r >= 8.5 or a.alpha:
+				_make_carcass(a, fxp, bool(d.get("fish", false)), not by_us, fsrc)
+			else:
+				drop_food(a.position, fxp, false, bool(d.get("fish", false)), not by_us, fsrc)
 			var mchance := 0.03 * (1.0 + float(run.stats["luck"]) * 0.2)
 			if a.alpha:
 				drop_mutagen(a.position, 1 + (1 if rng.randf() < 0.4 else 0))
@@ -937,3 +1220,9 @@ func _camera(delta: float) -> void:
 	view = Rect2(cam.position - half, vs)
 	for a in actors:
 		a.visible = (not a.dead and view.grow(40.0).has_point(a.position)) or (a.is_boss and not a.dead)
+	# see-through crowns: a tree fades while the player stands behind it
+	for o in tall_props:
+		var n: Sprite2D = o["n"]
+		var d: Vector2 = player.position - (o["p"] as Vector2)
+		var behind := absf(d.x) < 22.0 and d.y < -4.0 and d.y > -46.0
+		n.modulate.a = move_toward(n.modulate.a, 0.5 if behind else 1.0, delta * 4.0)

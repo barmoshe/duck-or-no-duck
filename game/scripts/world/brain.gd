@@ -97,8 +97,9 @@ static func think(w: World, a: Actor) -> void:
 	a.goal = {}
 	if a.state == "graze":
 		var bd := 110.0
-		for pl in w.plants:
-			if pl["alive"]:
+		# grazers go for fruit lying on the ground
+		for pl in w.foods:
+			if String(pl["type"]) == "fruit" and float(pl["z"]) <= 0.0:
 				var d := (pl["p"] as Vector2).distance_to(a.position)
 				if d < bd:
 					bd = d
@@ -106,7 +107,7 @@ static func think(w: World, a: Actor) -> void:
 	elif a.state == "scavenge":
 		var bdf := 150.0
 		for f in w.foods:
-			if int(f["mut"]) == 0:
+			if String(f["type"]) in ["meat", "fish", "carcass"]:
 				var d2 := (f["p"] as Vector2).distance_to(a.position)
 				if d2 < bdf:
 					bdf = d2
@@ -156,14 +157,14 @@ static func follow(w: World, a: Actor) -> void:
 					dir = to2.normalized()
 		"graze":
 			var best: Dictionary = a.goal
-			if not best.is_empty() and best.get("alive", false):
+			if not best.is_empty() and float(best.get("life", 0.0)) > 0.0:
 				var to3: Vector2 = (best["p"] as Vector2) - a.position
 				dir = to3.normalized() * 0.5
 				if to3.length() < a.r + 4.0:
 					a.eat_t += 0.2
 					if a.eat_t > 0.6:
 						a.eat_t = 0.0
-						w.eat_plant(best)
+						w.take_food(best)
 			else:
 				dir = a.wander * 0.4
 		"scavenge":
@@ -171,8 +172,17 @@ static func follow(w: World, a: Actor) -> void:
 			if not bestf.is_empty() and float(bestf.get("life", 0.0)) > 0.0:
 				var to4: Vector2 = (bestf["p"] as Vector2) - a.position
 				dir = to4.normalized()
-				if to4.length() < a.r + 4.0:
-					bestf["life"] = 0.0  # stolen!
+				if to4.length() < a.r + 4.0 + float(bestf.get("r", 0.0)):
+					if String(bestf["type"]) == "carcass":
+						dir *= 0.1
+						a.eat_t += 0.2
+						if a.eat_t > 0.8:
+							a.eat_t = 0.0
+							bestf["bites"] = int(bestf["bites"]) - 1  # a scavenger tears off a bite
+							if int(bestf["bites"]) <= 0:
+								bestf["life"] = 0.0
+					else:
+						bestf["life"] = 0.0  # stolen!
 					if a.position.distance_to(w.player.position) < 160.0:
 						w.fx.text(a.position + Vector2(0, -a.r * 2.0), "STOLEN", Pal.c("red", 3))
 			else:

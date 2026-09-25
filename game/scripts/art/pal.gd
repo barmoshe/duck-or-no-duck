@@ -11,6 +11,9 @@ const E := {
 	"mist": "c0cbdc", "slate": "8b9bb4", "steel": "5a6988", "dusk": "3a4466", "night": "262b44",
 	"ink": "181425", "hot": "ff0044", "foam": "8fe3f0", "sea": "39b8e0", "grape": "68386c", "rose": "b55088", "salmon": "f6757a",
 	"peach": "e8b796", "cocoa": "c28569",
+	# foliage extras for the fluffy tree crowns
+	"fern": "4fa845", "sprout": "95d65e", "ochre": "e0913a", "mauve": "8e4a5e", "dusty": "c46f7f",
+	"blush": "e39aa4", "petal": "f7cbd0", "stone": "9aa3b5",
 }
 
 const RAMPS := {
@@ -33,6 +36,10 @@ const RAMPS := {
 	"teal": ["ink", "deep", "pine", "sky", "cyan"],
 	"slime": ["night", "navy", "sea", "cyan", "foam"],
 	"chick": ["bark", "orange", "amber", "lemon", "lemon"],
+	# tree crowns: rim, base, mid, light, speck
+	"crown_green": ["pine", "grass", "fern", "leaf", "sprout"],
+	"crown_autumn": ["bark", "clay", "ochre", "amber", "lemon"],
+	"crown_blossom": ["mauve", "dusty", "blush", "petal", "white"],
 }
 
 const INK := Color("181425")

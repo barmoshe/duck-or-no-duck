@@ -105,6 +105,23 @@ func _shot_args() -> void:
 			"final":
 				run.time = Run.FINAL_TIME - 0.5
 				world.next_boss = 3
+			"shore":
+				# stand by a lake with trees around, to review terrain and props
+				var best := world.player.position
+				var best_s := -1
+				for o in world.map.obstacles:
+					if String(o["kind"]) != "tree":
+						continue
+					var op: Vector2 = o["p"]
+					var sc := 0
+					for a in 16:
+						if world.map.water_at(op + Vector2.from_angle(a * TAU / 16.0) * 70.0) != 0:
+							sc += 1
+					if sc > best_s and sc < 10:
+						best_s = sc
+						best = op + Vector2(0, 30)
+				world.player.position = best
+				world.cam.position = best
 	_shot_timer()
 
 
@@ -182,10 +199,12 @@ func _buttons() -> void:
 		return
 	var mv := run.move
 	controls.btns["move"]["label"] = _short(mv)
+	controls.btns["move"]["id"] = mv
 	controls.btns["move"]["cd"] = world.combat.move_cd
 	controls.btns["move"]["max"] = world.combat.move_max()
 	var ul := run.ultimate
 	controls.btns["ult"]["label"] = _short(ul)
+	controls.btns["ult"]["id"] = ul
 	controls.btns["ult"]["cd"] = world.combat.ult_cd
 	controls.btns["ult"]["max"] = world.combat.ult_max()
 	controls.blocked = [hud.pause_rect]

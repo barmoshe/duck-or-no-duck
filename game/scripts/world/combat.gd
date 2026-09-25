@@ -109,13 +109,17 @@ func fire(id: String) -> bool:
 	match String(spec["kind"]):
 		"melee":
 			hit(t, dmg, p, {"bleed": float(spec.get("bleed", 0.0))})
-			w.fx.cone(p.position + Vector2(0, -p.r * 0.6), dir, p.r + 12.0, 0.9, 0.15, Pal.c("snow", 4))
+			w.fx.slash(t.position + Vector2(0, -t.r * 0.8), dir, t.r + 7.0)
 		"multi":
+			# capture the target by id: it may be freed before a later hit lands
+			var tid := t.get_instance_id()
 			for k in int(spec["hits"]):
 				queued.append({"t": k * 0.09, "fn": func() -> void:
-					if World.valid(t):
-						hit(t, dmg, p, {})
-						w.fx.burst(t.position + Vector2(0, -t.r), Pal.c("snow", 4), 2, 30.0)})
+					var tg = instance_from_id(tid)
+					if World.valid(tg):
+						hit(tg, dmg, p, {})
+						w.fx.slash(tg.position + Vector2(randf_range(-3, 3), -tg.r * 0.8 + randf_range(-3, 3)), dir.rotated(randf_range(-0.6, 0.6)), tg.r + 4.0, Color.WHITE, 0.14)
+						w.fx.burst(tg.position + Vector2(0, -tg.r), Pal.c("snow", 4), 2, 30.0)})
 		"spin":
 			var rad := float(spec["range"]) * area() + p.r
 			for o in w.near(p.position, rad + 8.0):
@@ -131,9 +135,11 @@ func fire(id: String) -> bool:
 				_shoot(p.position + Vector2(0, -p.r), dir.rotated(off) * float(spec["speed"]), dmg, false, spec)
 		"lunge":
 			p.start_dash(dir * 260.0, minf(0.22, p.position.distance_to(t.position) / 260.0))
+			var lid := t.get_instance_id()
 			queued.append({"t": 0.12, "fn": func() -> void:
-				if World.valid(t) and t.position.distance_to(p.position) < t.r + p.r + 14.0:
-					hit(t, dmg, p, {"knock": 160.0})
+				var tg = instance_from_id(lid)
+				if World.valid(tg) and tg.position.distance_to(p.position) < tg.r + p.r + 14.0:
+					hit(tg, dmg, p, {"knock": 160.0})
 					w.shake = maxf(w.shake, 2.0)})
 		"lob":
 			var s := _shoot(p.position + Vector2(0, -p.r), Vector2.ZERO, dmg, false, spec)
@@ -236,6 +242,7 @@ func _animal_attacks(dt: float) -> void:
 				if World.valid(t) and a.position.distance_to(t.position) <= a.r + t.r + 9.0:
 					var dmg := a.dmg * (1.0 + float(w.run.stats["ally_dmg"]) / 100.0 + float(w.run.stats["social"]) * 0.03 if a.is_ally else 1.0)
 					hit(t, dmg, a, {})
+					w.fx.slash(t.position + Vector2(0, -t.r * 0.8), (t.position - a.position).normalized(), t.r + 5.0, Pal.c("red", 4) if t.is_player else Color.WHITE, 0.16)
 					a.bite_t = 0.2
 					if a.is_ally:
 						Sfx.play("chomp", 1.4, -8.0)
@@ -291,6 +298,7 @@ func hit(t: Actor, amount: float, src: Actor, opts: Dictionary) -> void:
 		if w.bosses.final_active:
 			dmg *= 1.0
 		# thorns
+		w.on_player_hit()
 		if World.valid(src) and stat("thorns") > 0.0:
 			src.hp -= dmg * stat("thorns") / 100.0
 			src.hit_flash()

@@ -18,8 +18,8 @@ var stick_on := false
 var base := Vector2.ZERO
 var knob := Vector2.ZERO
 var btns := {
-	"move": {"label": "", "cd": 0.0, "max": 1.0, "pos": Vector2.ZERO, "pressed": 0.0},
-	"ult": {"label": "", "cd": 0.0, "max": 1.0, "pos": Vector2.ZERO, "pressed": 0.0},
+	"move": {"label": "", "id": "", "cd": 0.0, "max": 1.0, "pos": Vector2.ZERO, "pressed": 0.0},
+	"ult": {"label": "", "id": "", "cd": 0.0, "max": 1.0, "pos": Vector2.ZERO, "pressed": 0.0},
 }
 var blocked: Array[Rect2] = []
 var hint_t := 0.0
@@ -37,8 +37,8 @@ func reset() -> void:
 
 func _layout() -> void:
 	var s := Game.safe_rect(size)
-	btns["move"]["pos"] = (Vector2(s.end.x - 26, s.end.y - 26)).floor()
-	btns["ult"]["pos"] = (Vector2(s.end.x - 60, s.end.y - 18)).floor()
+	btns["move"]["pos"] = (Vector2(s.end.x - 22, s.end.y - 36)).floor()
+	btns["ult"]["pos"] = (Vector2(s.end.x - 58, s.end.y - 27)).floor()
 	if size.x < size.y:
 		btns["ult"]["pos"] = (Vector2(s.end.x - 26, s.end.y - 62)).floor()
 
@@ -139,12 +139,20 @@ func _draw() -> void:
 			continue
 		var pos: Vector2 = b["pos"]
 		var rdy := float(b["cd"]) <= 0.0
-		var col := (Pal.c("gold", 3) if k == "ult" else Pal.c("blue", 3)) if rdy else Color("5a6988")
-		var rr := BTN_R - float(b["pressed"]) * 2.0
-		draw_circle(pos + Vector2(0, 2), rr, Color(0, 0, 0, 0.35))
-		draw_circle(pos, rr + 1, Pal.INK)
-		draw_circle(pos, rr, col)
+		var off := Vector2(0, 1) * float(b["pressed"])
+		var rr := BTN_R
+		var c := (pos + off).floor()
+		# a round wooden button: dark outline, tan rim, parchment face with the icon
+		draw_circle(pos.floor() + Vector2(0, 2), rr + 1.0, Color(0, 0, 0, 0.3))
+		draw_circle(c, rr + 1.0, Ui.WOOD_OUT)
+		draw_circle(c, rr, Ui.WOOD)
+		draw_arc(c, rr - 0.5, PI * 1.1, PI * 1.9, 12, Ui.WOOD_HI, 1.0)
+		draw_circle(c, rr - 3.0, Ui.WOOD_OUT)
+		draw_circle(c, rr - 4.0, (Ui.PARCHMENT if k == "move" else Color("feae34")) if rdy else Color("8b9bb4"))
+		var ic := Icons.tex(String(b.get("id", "")))
+		var isz := ic.get_size()
+		draw_texture(ic, (c - isz * 0.5).floor() + Vector2(1, 0), Color.WHITE if rdy else Color(1, 1, 1, 0.6))
 		if not rdy:
 			var frac := float(b["cd"]) / maxf(0.01, float(b["max"]))
-			draw_arc(pos, rr * 0.5, -PI * 0.5, -PI * 0.5 + TAU * frac, 16, Color(0, 0, 0, 0.45), rr, false)
-		Ui.text(self, pos + Vector2(0, 3), String(b["label"]), Pal.INK if rdy else Color.WHITE, Ui.small(), 8, 1, not rdy)
+			draw_arc(c, (rr - 4.0) * 0.5, -PI * 0.5, -PI * 0.5 + TAU * frac, 20, Color(0.09, 0.07, 0.14, 0.55), rr - 4.0, false)
+		Ui.text(self, c + Vector2(0, rr + 8), String(b["label"]), Color.WHITE, Ui.small(), 8, 1)

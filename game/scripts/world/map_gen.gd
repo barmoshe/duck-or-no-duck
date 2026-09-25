@@ -153,9 +153,11 @@ func _place_things() -> void:
 		var p2 := Vector2(cx2, cy2) * CELL + Vector2(rng.randf_range(0, 16), rng.randf_range(0, 16))
 		var kinds: Array
 		if water[i2] != 0:
-			kinds = ["lily", "lily", "ripple"] if biome[i2] != 3 else ["ice_crack"]
+			kinds = ["lily", "lily", "ripple", "reeds"] if biome[i2] != 3 else ["ice_crack"]
+			if water[i2] == 2 and biome[i2] != 3:
+				kinds = ["lily", "ripple"]
 		else:
-			kinds = [["flowers", "grass", "grass", "flowers", "tall_grass"], ["reeds", "grass", "cattail", "tall_grass"], ["shell", "pebbles", "grass_dry", "bones"], ["snow_tuft", "pebbles", "icicle", "snow_tuft"]][biome[i2]]
+			kinds = [["flowers", "grass", "grass", "flowers", "tall_grass", "pebbles"], ["reeds", "grass", "cattail", "tall_grass", "pebbles"], ["shell", "pebbles", "grass_dry", "bones"], ["snow_tuft", "pebbles", "icicle", "snow_tuft"]][biome[i2]]
 		decor.append({"p": p2, "kind": kinds[rng.randi() % kinds.size()]})
 	# points of interest: four per terrain, spread out, each kind fitting its terrain
 	var used_kinds := {}

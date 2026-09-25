@@ -34,6 +34,10 @@ static func eligible(run: Run, id: String, source: String) -> bool:
 		return false
 	if d.has("needs_ducks") and run.duck_parts() < int(d["needs_ducks"]):
 		return false
+	# diets that contradict each other never share a hand
+	for other in d.get("excludes", []):
+		if run.has(String(other)):
+			return false
 	# movement and ultimates are one-slot: rank ups only for the equipped one
 	if t == "move" and run.has(id) and run.move != id:
 		return false

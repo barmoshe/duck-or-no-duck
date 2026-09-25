@@ -87,17 +87,20 @@ func _draw() -> void:
 	var R := s.end.x
 	var T := s.position.y
 
-	# --- the timer bar (Crab): the run's clock with the bosses in the order they come
-	# between the HP block (left) and the pause button + minimap (right)
-	var dm_l := L + 84.0 + 30.0
+	# --- the timer bar (Crab): a clock and the run's clock with the bosses hanging under
+	# it in the order they come, between the HP block (left) and pause + minimap (right)
+	var dm_l := L + 112.0
 	var dm_r := R - 46.0 - 26.0
 	var dm_w := maxf(80.0, dm_r - dm_l)
-	var dm := Rect2(floorf(dm_l), T + 2, floorf(dm_w), 7)
-	Ui.bar(self, dm, run.time / Run.FINAL_TIME, Pal.c("gold", 3) if not run.is_night() else Pal.c("blue", 3))
+	var dm := Rect2(floorf(dm_l), T, floorf(dm_w), 9)
+	draw_texture(Icons.tex("hud_clock"), Vector2(dm.position.x - 12, T - 1))
+	var night := run.is_night()
+	Ui.wood_bar(self, dm, run.time / Run.FINAL_TIME, Color("a22633") if not night else Color("3a4466"))
+	var inner_w := dm.size.x - 4.0
 	var marks: Array = Run.BOSS_TIMES.duplicate()
 	marks.append(Run.FINAL_TIME)
 	for i in marks.size():
-		var x := dm.position.x + floorf((dm.size.x - 2) * float(marks[i]) / Run.FINAL_TIME) + 1
+		var x := dm.position.x + 2.0 + floorf((inner_w - 1.0) * float(marks[i]) / Run.FINAL_TIME)
 		var id := String(run.boss_order[i])
 		var done := run.time >= float(marks[i])
 		var ic := _boss_icon(id)
@@ -105,50 +108,53 @@ func _draw() -> void:
 		var ip := Vector2(x - isz.x * 0.5, dm.end.y + 1).floor()
 		if i == marks.size() - 1:
 			ip.x = minf(ip.x, dm.end.x - isz.x + 4)
-		draw_texture(ic, ip, Color(1, 1, 1, 0.45) if done else Color.WHITE)
-		draw_rect(Rect2(x, dm.position.y - 1, 1, dm.size.y + 2), Pal.c("red", 3))
-	# the day/night marker: a sun or a moon riding the bar
-	var sx := dm.position.x + floorf((dm.size.x - 2) * run.time / Run.FINAL_TIME)
-	draw_circle(Vector2(sx, dm.position.y + 3), 3.0, Pal.c("gold", 4) if not run.is_night() else Pal.c("snow", 4))
-	Ui.text(self, Vector2(dm.position.x - 4, dm.position.y + 7), "%d:%02d" % [int(run.time) / 60, int(run.time) % 60], Color.WHITE, Ui.small(), 8, 2)
+		draw_rect(Rect2(x, dm.position.y + 2, 1, dm.size.y - 4), Ui.WOOD_HI)
+		draw_texture(ic, ip, Color(1, 1, 1, 0.4) if done else Color.WHITE)
+	# the day/night marker riding the bar: a sun or a moon
+	var sx := dm.position.x + 2.0 + floorf((inner_w - 1.0) * run.time / Run.FINAL_TIME)
+	draw_circle(Vector2(sx, dm.position.y + 4.5), 3.5, Ui.WOOD_OUT)
+	draw_circle(Vector2(sx, dm.position.y + 4.5), 2.5, Pal.c("gold", 3) if not night else Pal.c("snow", 4))
 
-	# --- HP, mutagen, attacks: top left
-	var bw := 84.0
-	var y0 := T + 1.0
-	Ui.bar(self, Rect2(L, y0, bw, 9), p.hp / maxf(1.0, p.max_hp), Pal.c("red", 2))
-	Ui.text(self, Vector2(L + 3, y0 + 8), "%d/%d" % [ceili(maxf(0.0, p.hp)), ceili(p.max_hp)], Color.WHITE)
-	draw_texture(Props.tex("mutagen"), Vector2(L, y0 + 12))
-	Ui.text(self, Vector2(L + 11, y0 + 21), str(run.mutagen), Pal.c("green", 4))
-	var ax := L + 26.0
+	# --- HP: a heart and a framed red bar, top left
+	var y0 := T
+	draw_texture(Icons.tex("hud_heart"), Vector2(L, y0))
+	Ui.wood_bar(self, Rect2(L + 13, y0, 84, 11), p.hp / maxf(1.0, p.max_hp), Color("e43b44"), "%d/%d" % [ceili(maxf(0.0, p.hp)), ceili(p.max_hp)])
+	draw_texture(Props.tex("mutagen"), Vector2(L + 1, y0 + 13))
+	Ui.text(self, Vector2(L + 12, y0 + 22), str(run.mutagen), Pal.c("green", 4))
+	var info_y := y0 + 23.0
+	if run.duck_parts() > 0:
+		info_y += 9
+		Ui.text(self, Vector2(L + 28, y0 + 22), "DUCK %d/8" % run.duck_parts(), Pal.c("gold", 3))
+	if world.ally_count() > 0:
+		info_y += 9
+		Ui.text(self, Vector2(L, info_y), "ALLIES %d/%d" % [world.ally_count(), int(run.stats["ally_max"])], Pal.c("pink", 3))
+	if world.hidden():
+		Ui.text(self, Vector2(s.get_center().x, s.end.y - 30), "HIDING IN A BURROW", Pal.c("brown", 4), Ui.small(), 8, 1)
+	if world.dizzy > 0.0:
+		Ui.text(self, Vector2(s.get_center().x, s.end.y - 38), "DIZZY!", Pal.c("purple", 4), Ui.small(), 8, 1)
+
+	# --- attacks: framed icon slots, bottom left, dark while cooling down
+	var ss := 20.0
+	var ax := L
 	for id in run.attacks:
-		var r := Rect2(ax, y0 + 12, 28, 10)
 		var cd := float(world.combat.cds.get(id, 0.0))
 		var mx := float(Attacks.ATTACK[id]["cd"]) * Attacks.rank_cd(run.rank(id)) * float(run.stats["cd_mult"])
-		Ui.bar(self, r, 1.0 - cd / maxf(0.01, mx), Pal.c("blue", 2))
-		Ui.text(self, Vector2(r.get_center().x, r.end.y - 2), String(Evolutions.get_def(id)["name"]).substr(0, 5).to_upper(), Color.WHITE, Ui.small(), 8, 1)
-		ax += 30.0
-	var info_y := y0 + 32.0
-	if run.duck_parts() > 0:
-		Ui.text(self, Vector2(L, info_y), "DUCK %d/8" % run.duck_parts(), Pal.c("gold", 3))
-		info_y += 9
-	if world.ally_count() > 0:
-		Ui.text(self, Vector2(L, info_y), "ALLIES %d/%d" % [world.ally_count(), int(run.stats["ally_max"])], Pal.c("pink", 3))
-		info_y += 9
-	if world.hidden():
-		Ui.text(self, Vector2(s.get_center().x, s.end.y - 22), "HIDING IN A BURROW", Pal.c("brown", 4), Ui.small(), 8, 1)
-	if world.dizzy > 0.0:
-		Ui.text(self, Vector2(s.get_center().x, s.end.y - 30), "DIZZY!", Pal.c("purple", 4), Ui.small(), 8, 1)
+		Ui.slot(self, Rect2(ax, s.end.y - ss, ss, ss), Icons.tex(id), cd / maxf(0.01, mx))
+		ax += ss + 3.0
 
-	# --- XP across the bottom
-	var xr := Rect2(s.position.x + 40, s.end.y - 6, s.size.x - 150, 6)
-	Ui.bar(self, xr, run.xp / run.xp_need(), Pal.c("green", 3))
-	Ui.text(self, Vector2(xr.position.x - 3, xr.end.y), "LV%d" % run.level, Pal.c("green", 4), Ui.small(), 8, 2)
+	# --- XP: the fruit with the level on it and a framed bar, bottom center
+	var xl := maxf(ax + 16.0, s.position.x + s.size.x * 0.22)
+	var xr_end := minf(R - 80.0, s.position.x + s.size.x * 0.78)
+	var xr := Rect2(floorf(xl), s.end.y - 11, floorf(maxf(60.0, xr_end - xl)), 11)
+	Ui.wood_bar(self, xr, run.xp / run.xp_need(), Color("63c74d"), "%d/%d" % [int(run.xp), int(run.xp_need())])
+	draw_texture(Icons.tex("hud_fruit"), Vector2(xr.position.x - 13, xr.position.y - 2))
+	Ui.text(self, Vector2(xr.position.x - 6, xr.end.y + 1), str(run.level), Color.WHITE, Ui.small(), 8, 1)
 
-	# --- minimap, top right
+	# --- minimap in a wooden frame, top right
 	var ms := 46.0
 	var mr := Rect2(R - ms, T + 1, ms, ms)
 	if map_tex:
-		draw_rect(mr.grow(1), Pal.INK)
+		Ui.wood(self, mr.grow(2))
 		draw_texture_rect(map_tex, mr, false)
 		var k := ms / MapGen.SIZE
 		for poi in world.pois:
@@ -162,16 +168,18 @@ func _draw() -> void:
 		var pp := mr.position + p.position * k
 		draw_rect(Rect2(pp - Vector2(1, 1), Vector2(3, 3)), Color.WHITE)
 		draw_rect(Rect2(pp, Vector2(1, 1)), Pal.c("blue", 2))
-	# pause button under the map
-	pause_rect = Rect2(R - ms - 20, T + 1, 16, 14)
-	Ui.button(self, pause_rect, "II", Color("3a4466"))
+	# pause button left of the map
+	pause_rect = Rect2(R - ms - 20, T, 15, 14)
+	Ui.wood(self, pause_rect)
+	draw_rect(Rect2(pause_rect.position + Vector2(5, 4), Vector2(2, 6)), Ui.PARCHMENT)
+	draw_rect(Rect2(pause_rect.position + Vector2(9, 4), Vector2(2, 6)), Ui.PARCHMENT)
 
 	# --- boss bar
 	var bosses := world.bosses
 	if World.valid(bosses.boss):
 		var b := bosses.boss
-		var bb := Rect2(floorf(s.get_center().x - dm_w * 0.5), T + 28, dm_w, 7)
-		Ui.bar(self, bb, b.hp / b.max_hp, Pal.c("red", 3))
+		var bb := Rect2(floorf(s.get_center().x - dm_w * 0.5), T + 30, dm_w, 9)
+		Ui.wood_bar(self, bb, b.hp / b.max_hp, Pal.c("red", 3))
 		var label := String(Species.get_def(b.species)["name"]).to_upper()
 		if bosses.bread_on:
 			label += "  BREADFALL %d" % ceili(bosses.bread_left)

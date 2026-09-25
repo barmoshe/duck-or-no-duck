@@ -1,7 +1,7 @@
 class_name Weather
 extends CanvasLayer
 ## Biome weather, every 2.5-3.5 minutes for 40 s, in the biome you're standing in:
-## rain (Meadow: plants regrow x3), current (Lake: water pushes everyone), heatwave
+## rain (Meadow: fruit regrows x3), current (Lake: water pushes everyone), heatwave
 ## (Desert: -1 HP/s on dry sand), blizzard (Snowfield: everyone 30% slower).
 ## Drawn as a screen-space overlay of falling pixels.
 

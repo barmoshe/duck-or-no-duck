@@ -8,6 +8,13 @@ const PANEL := Color("262b44")
 const PANEL_LIGHT := Color("3a4466")
 const TEXT := Color("ffffff")
 const DIM := Color("8b9bb4")
+# the wooden HUD frames (Everything is Crab style)
+const WOOD_OUT := Color("3e2731")
+const WOOD := Color("b86f50")
+const WOOD_HI := Color("e4a672")
+const WOOD_LO := Color("733e39")
+const WOOD_IN := Color("2a1c24")
+const PARCHMENT := Color("ead4aa")
 
 
 static func small() -> Font:
@@ -111,3 +118,45 @@ static func gem(ci: CanvasItem, c: Vector2, aff: String) -> void:
 	var pts := PackedVector2Array([c + Vector2(0, -3), c + Vector2(3, 0), c + Vector2(0, 3), c + Vector2(-3, 0)])
 	ci.draw_colored_polygon(pts, col)
 	ci.draw_rect(Rect2(c + Vector2(-1, -2), Vector2(1, 1)), Color.WHITE)
+
+
+## A wooden frame: dark outline with clipped corners, a tan board lit on top.
+static func wood(ci: CanvasItem, r: Rect2) -> void:
+	var rr := Rect2(r.position.floor(), r.size.floor())
+	ci.draw_rect(Rect2(rr.position + Vector2(1, 2), rr.size - Vector2(2, 1)), Color(0, 0, 0, 0.3))
+	ci.draw_rect(Rect2(rr.position + Vector2(1, 0), Vector2(rr.size.x - 2, rr.size.y)), WOOD_OUT)
+	ci.draw_rect(Rect2(rr.position + Vector2(0, 1), Vector2(rr.size.x, rr.size.y - 2)), WOOD_OUT)
+	var f := rr.grow(-1)
+	ci.draw_rect(f, WOOD)
+	ci.draw_rect(Rect2(f.position, Vector2(f.size.x, 1)), WOOD_HI)
+	ci.draw_rect(Rect2(f.position + Vector2(0, f.size.y - 1), Vector2(f.size.x, 1)), WOOD_LO)
+
+
+## A bar inside a wooden frame, with an optional label centered on it.
+static func wood_bar(ci: CanvasItem, r: Rect2, frac: float, fill: Color, label: String = "") -> void:
+	wood(ci, r)
+	var rr := Rect2(r.position.floor(), r.size.floor())
+	var inner := Rect2(rr.position + Vector2(2, 2), rr.size - Vector2(4, 4))
+	ci.draw_rect(inner, WOOD_IN)
+	var w := floorf(inner.size.x * clampf(frac, 0.0, 1.0))
+	if w > 0:
+		ci.draw_rect(Rect2(inner.position, Vector2(w, inner.size.y)), fill)
+		ci.draw_rect(Rect2(inner.position, Vector2(w, 1)), fill.lightened(0.35))
+		if inner.size.y > 3:
+			ci.draw_rect(Rect2(inner.position + Vector2(0, inner.size.y - 1), Vector2(w, 1)), fill.darkened(0.3))
+	if label != "":
+		text(ci, Vector2(inner.get_center().x, floorf(rr.position.y + rr.size.y * 0.5 + 3.5)), label, TEXT, small(), 8, 1)
+
+
+## A framed ability slot: icon on parchment, darkened from the top while cooling down.
+static func slot(ci: CanvasItem, r: Rect2, icon: Texture2D, cd_frac: float) -> void:
+	wood(ci, r)
+	var rr := Rect2(r.position.floor(), r.size.floor())
+	var inner := Rect2(rr.position + Vector2(2, 2), rr.size - Vector2(4, 4))
+	ci.draw_rect(inner, PARCHMENT)
+	ci.draw_rect(Rect2(inner.position, Vector2(inner.size.x, 1)), Color(1, 1, 1, 0.45))
+	var isz := icon.get_size()
+	ci.draw_texture(icon, (inner.get_center() - isz * 0.5).floor())
+	if cd_frac > 0.0:
+		var hgt := ceilf(inner.size.y * clampf(cd_frac, 0.0, 1.0))
+		ci.draw_rect(Rect2(inner.position, Vector2(inner.size.x, hgt)), Color(0.09, 0.07, 0.14, 0.62))
