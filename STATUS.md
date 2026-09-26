@@ -51,6 +51,35 @@ v0.3 "reinvent" build, playable end to end. Headless tests, a balance report and
 - About half the level-25 bots beat the final boss.
 - Level-ups were a bit below the 14-16 target, so the XP curve was eased on 2026-09-26.
 
+## Next: Crab-faithful eating and food art (handed to a local agent with a browser)
+Bar (26/09): "the eating is not like in Everything is Crab; improve the eating logic and all the food assets and looks". The cloud container blocks every Crab wiki and guide page (wiki.gg, hinamizawa.ai, everythingiscrab.org, thegamer, neoseeker, sportskeeda), so the research moves to a local agent.
+
+**Research so far** (search snippets only):
+- **Drops:** killed animals (by Darwin, another animal or a boss) drop a number of food pieces, meat or fish, and other animals can eat them. The snippets never mention chewing a carcass.
+- **Food items:** 12 basic foods, fruit, meat and fish in 4 rarities each (common, rare, epic, legendary). Rarity is shown by tier, not by name.
+- **Heart drops** are "HpFood heal-on-bite" versions of each food type ("sparkling food heals").
+  - Common, rare and epic pieces can turn into a heart drop, at a chance set by the "Food Into Health" stat. Legendary pieces never do.
+  - Regular enemies roll legendary 1% of the time; bosses 4%.
+- **Feeding stats:** Darwin's base Feeding Distance is 1 (world units). Feeding Speed, Cheek Pouch ("store nearby food, eaten at the same rate", capacity 2), Saliva (for when feeding speed is the bottleneck) and Slow Metabolism exist.
+- **What guides say:** Cheek Pouch "lets you keep moving instead of stopping for every food pickup". Mushrooms give food progress. Carcinisation raises the quality of food that spawns.
+
+**Open questions for the browser** (wiki pages plus gameplay video):
+- How does a bite look and play? Does Darwin stop? Does one piece take several bites and shrink? How long is a bite?
+- How far is Feeding Distance in practice? What does the food look like on the ground (sprites, sizes, the sparkle and rarity glow)?
+
+**Pages to read:**
+- everythingiscrab.wiki.gg: Food, Darwin, Cheek Pouch, Saliva, Slow Metabolism
+- hinamizawa.ai/everything-is-crab/items
+- everythingiscrab.org/mechanics
+
+**What the game has now** (v6):
+- The meal slot in `World._feed`, with `Foods.eat_time`: stand still, chew 0.35-0.5 s, heal a little.
+- Cheek Pouch and Saliva.
+- Carcass bites, which may need to become plain meat drops.
+- Food sprites from `Props` (`food_<type>_<rarity>`), hearts, and the chew ring in `fx.gd`.
+
+**Still to do:** redraw all the food art in the flat Darwin style.
+
 ## Next action
 - Playtest on a phone and tune from real play, especially:
   - boss damage
