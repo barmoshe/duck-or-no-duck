@@ -126,6 +126,19 @@ func _draw() -> void:
 	if world.ally_count() > 0:
 		info_y += 9
 		Ui.text(self, Vector2(L, info_y), "ALLIES %d/%d" % [world.ally_count(), int(run.stats["ally_max"])], Pal.c("pink", 3))
+	# Cheek Pouch: one slot per piece your cheeks can hold, showing what's stored
+	var cap := int(run.stats["pouch"])
+	if cap > 0:
+		info_y += 2
+		for i in cap:
+			var slot := Rect2(L + 1 + i * 11, info_y, 10, 10)
+			draw_rect(slot, Ui.WOOD_OUT)
+			draw_rect(slot.grow(-1), Color("ead4aa").darkened(0.2))
+			if i < world.pouch.size():
+				var ic = world.pouch[i].get("icon", null)
+				if ic is Texture2D:
+					draw_texture_rect(ic, slot.grow(-1), false)
+		info_y += 11
 	if world.hidden():
 		Ui.text(self, Vector2(s.get_center().x, s.end.y - 30), "HIDING IN A BURROW", Pal.c("brown", 4), Ui.small(), 8, 1)
 	if world.dizzy > 0.0:

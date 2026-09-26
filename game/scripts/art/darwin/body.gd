@@ -84,6 +84,7 @@ const SLOT_PART := {
 	"legs": {"stubby": "stubby", "long": "legs_long", "legs_tall": "legs_tall", "webbed": "webbed", "bug": "bug", "crab": "crab",
 		"frog": "frog", "stilts": "stilts", "cilia": "cilia"},
 	"arms": {"claws": "claws", "claws_big": "claws_big", "tentacles": "tentacles", "tentacles_big": "tentacles_big"},
+	"cheeks": {"pouch": "cheeks"},
 	"mouth": {"bill": "bill", "beak": "beak", "snout": "snout", "mandibles": "mandibles", "pincers": "pincers", "sucker": "sucker"},
 }
 
@@ -91,7 +92,7 @@ const SLOT_PART := {
 ## The parts and face of a look (the player's run look).
 static func spec_of(look: Dictionary) -> Dictionary:
 	var parts: Array = []
-	for slot in ["crown", "back", "armor", "tail", "legs", "arms", "mouth"]:
+	for slot in ["crown", "back", "armor", "tail", "legs", "arms", "cheeks", "mouth"]:
 		var v := String(look.get(slot, look.get("head", "none") if slot == "crown" else "none"))
 		var m: Dictionary = SLOT_PART[slot]
 		if m.has(v) and not m[v] in parts:

@@ -106,6 +106,9 @@ part("mandibles", [["kk..", ".kdk", "..k.", ".kdk", "kk.."], ["kkk.", "..kdk", "
 part("pincers", [["kk..", ".krk", "..k.", ".krk", "kk.."]], (0, 2), "face", "front")
 part("sucker", [["kk.", "kPk", "kk."]], (0, 1), "face", "front")
 
+# ---------------- cheeks (Cheek Pouch): a puffed cheek with a blush, low on the face
+part("cheeks", [["..kkk..", ".kFFFFk", "kFFFPPk", "kFFFFFk", ".kfFFfk", "..kkkk."]], (3, 0), "face", "front")
+
 import json
 open('/tmp/claude-0/-home-user-bar-builds/f444614b-f2b3-55c1-a1f3-5f7f9598ded7/scratchpad/dparts.json','w').write(json.dumps(P))
 out = ['class_name DarwinParts', 'extends RefCounted', '## Hand-drawn parts for Puddle (Darwin style), generated from tools/art/darwin_parts.py.',

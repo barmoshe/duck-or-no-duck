@@ -12,7 +12,7 @@ const DAY_LEN := 240.0  # one full day + night
 const BASE := {
 	"physical": 10.0, "ability": 10.0, "max_hp": 50.0, "speed": 5.0, "social": 5.0,
 	"size": 100.0, "dmg": 100.0, "cdr": 0.0, "area": 100.0, "armor": 0.0, "regen": 0.5,
-	"crit": 5.0, "evasion": 0.0, "magnet": 26.0, "luck": 0.0, "xp": 0.0, "food": 0.0,
+	"crit": 5.0, "evasion": 0.0, "magnet": 12.0, "pouch": 0.0, "luck": 0.0, "xp": 0.0, "food": 0.0,
 	"thorns": 0.0, "poison": 0.0, "heal_kill": 0.0, "execute": 0.0, "stealth": 0.0, "revive": 0.0,
 	"ally_cap": 0.0, "ally_dmg": 0.0, "ally_regen": 0.0, "herd": 0.0, "ram": 0.0, "echo": 0.0,
 	"swim": 0.0, "temper": 0.0, "all": 0.0, "vision": 0.0, "identify": 0.0,

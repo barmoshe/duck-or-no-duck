@@ -133,3 +133,24 @@ Bar rejected the sculpted v4 look ("looks terrible") and sent a screenshot of Cr
   - Hand-drawn side-view sprites in the same language (`tools/art/darwin_animals.py` → `darwin/animals.gd`): a body, a two-frame leg strip, an optional alt body for the walk (a tail flick, a wing beat), and eyes that blink and a mouth that opens on the bite.
   - Bosses are drawn at about 38 px; the Great Mallard is shown at 2× as a giant.
   - The v4 Genome/Sculptor is retired. Puddle's stacked eyes are counted in `Run._look` (`eye_n`), and Swan Neck stretches Puddle's neck.
+
+## v6 eating, after Crab's feeding model (2026-09-26)
+
+Bar said the eating felt off.
+
+**Research** (search snippets only; the wiki and guides are blocked):
+- In Crab, eating fills Progress and heals.
+- Feeding Speed, Feeding Distance, Cheek Pouch and Saliva are separate levers.
+- Cheek Pouch exists so that "instead of stopping for every food pickup, you can store food, keep moving, and let the food convert into progress". So you stop to eat, and eating takes time.
+
+**What we had:** a Vampire-Survivors vacuum. Food flew in from 26 px and was eaten on touch, so eating carried no risk and Feeding Speed only mattered for carcasses.
+
+**What we have now** (`World._feed`):
+- **One meal slot.** The nearest edible food within Feeding Distance (body radius + `magnet`) becomes the meal when you're slow.
+- **Eating time.** It chews for `Foods.eat_time(type, rarity, feed)`: fruit 0.35 s, fish 0.45 s, meat or a carcass bite 0.5 s, times 1 / 1.3 / 1.6 / 2.2 by rarity, divided by Feeding Speed.
+- **Interruptions.** Moving pauses the chew, walking off drops the piece, and an animal taking it steals it.
+- **Payoff.** Finishing gives the usual Progress plus a heal of 1% max HP × (1 + rarity).
+- **Carcass bites** roll their rarity and pay out directly.
+- **Cheek Pouch** stashes food in reach while you're busy or moving (it can't spoil or be stolen) and eats it at the same rate even on the move.
+- **Feedback:** a chew ring with the food icon over Puddle, crumbs, and an open/close mouth animation. The HUD shows pouch slots.
+- **Balance:** each piece is worth 15% more (`Foods.VALUE`) to pay for the eating time. Bot runs (4 seeds) against the vacuum build: levels at death [10, 8, 8, 7] vs [7, 7, 11, 5], and 1/4 past the first boss in both.

@@ -26,6 +26,14 @@ const TYPE_COL := {"fruit": "salmon", "meat": "peach", "fish": "cyan", "heart": 
 const FRUIT_OF_BIOME := ["apple", "apple", "pear", "snowberry"]
 ## base fruit XP (before rarity, food bonuses and the run's minute)
 const FRUIT_XP := 2.5
+## Eating takes time, as in Crab: seconds to chew one piece at 100% Feeding Speed, by
+## type, times its bulk by rarity (a legendary piece is a feast). A carcass bite is meat.
+const EAT_TIME := {"fruit": 0.35, "fish": 0.45, "meat": 0.5, "carcass": 0.5}
+const BULK := [1.0, 1.3, 1.6, 2.2]
+## every piece you finish heals a little: this share of max HP x (1 + rarity)
+const EAT_HEAL := 0.01
+## eating costs time now, so each piece is worth a bit more Progress than when food was vacuumed
+const VALUE := 1.15
 const FISH_POOL_XP := 3.0
 
 
@@ -57,3 +65,8 @@ static func sprite_name(type: String, variant: String, rar: int) -> String:
 	if type == "heart":
 		return "food_heart"
 	return "food_%s_%d" % [variant if type == "fruit" else type, rar]
+
+
+## Seconds to eat a piece at a Feeding Speed (100 = base).
+static func eat_time(type: String, rar: int, feed: float) -> float:
+	return float(EAT_TIME.get(type, 0.5)) * float(BULK[clampi(rar, 0, 3)]) / maxf(0.2, feed / 100.0)

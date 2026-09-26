@@ -216,18 +216,71 @@ func _food() -> void:
 	w.player.hp = 1.0
 	w._eat(w.spawn_food(w.player.position, "heart", 1.0, 0))
 	check(w.player.hp > 5.0, "a heart drop heals")
-	# carcasses: big kills are chewed bite by bite
+	# eating (Crab): stand still next to food and chew it; it takes time and heals a little
 	main.run.stats["vegan"] = 0.0
+	for f in w.foods:
+		(f["n"] as Node).queue_free()
+	w.foods.clear()
+	w._clear_meal()
+	w.player.vel = Vector2.ZERO
+	w.player.hp = 10.0
+	var xp_e: float = main.run.xp
+	var lvl_e: int = main.run.level
+	var fd: Dictionary = w.spawn_food(w.player.position + Vector2(6, 0), "meat", 5.0, 0)
+	fd["v"] = Vector2.ZERO
+	var need := Foods.eat_time("meat", 0, float(main.run.stats["feed"]))
+	w._feed(0.01)
+	check(is_same(w.meal, fd), "standing next to food starts eating it")
+	w.player.vel = Vector2(60, 0)
+	var mt0: float = w.meal_t
+	w._feed(0.3)
+	check(w.meal_t == mt0, "moving pauses chewing")
+	w.player.vel = Vector2.ZERO
+	for i in 12:
+		w._feed(need / 10.0)
+	check(w.meal.is_empty() and not w.foods.has(fd) and (main.run.xp > xp_e or main.run.level > lvl_e), "chewing for the eating time finishes the piece and gives Progress")
+	check(w.player.hp > 10.0, "eating heals a little")
+	check(Foods.eat_time("meat", 3, 100.0) > need and Foods.eat_time("meat", 0, 125.0) < need, "rare food takes longer to eat; Saliva (Feeding Speed) is faster")
+	var fw: Dictionary = w.spawn_food(w.player.position + Vector2(6, 0), "fruit", 5.0, 0)
+	fw["v"] = Vector2.ZERO
+	w._feed(0.01)
+	fw["p"] = w.player.position + Vector2(200, 0)
+	w._feed(0.01)
+	check(w.meal.is_empty() and w.foods.has(fw), "walking away leaves the piece on the ground")
+	fw["p"] = w.player.position + Vector2(6, 0)
+	w._feed(0.01)
+	w.take_food(fw)
+	w._feed(0.01)
+	check(w.meal.is_empty(), "an animal can steal the piece you're eating")
+	# Cheek Pouch: food in reach goes into your cheeks while you move, and is eaten on the move
+	main.run.stats["pouch"] = 2.0
+	for i in 3:
+		var fp: Dictionary = w.spawn_food(w.player.position + Vector2(4 + i, 2), "fruit", 5.0, 0)
+		fp["v"] = Vector2.ZERO
+	w.player.vel = Vector2(60, 0)
+	w._feed(0.01)
+	check(w.pouch.size() + (1 if w.meal_src == "pouch" else 0) == 2, "Cheek Pouch stores up to its capacity (%d)" % w.pouch.size())
+	w._feed(0.1)
+	check(w.meal_src == "pouch" and w.meal_t > 0.0, "food in your cheeks is eaten while moving")
+	main.run.stats["pouch"] = 0.0
+	w.pouch.clear()
+	w._clear_meal()
+	# carcasses: big kills are eaten bite by bite, each bite straight to Progress
+	for f in w.foods:
+		(f["n"] as Node).queue_free()
+	w.foods.clear()
+	w.player.vel = Vector2.ZERO
 	var an: Actor = w.spawn_animal("capybara", w.player.position + Vector2(8, 0), false)
 	w._make_carcass(an, 20.0, false, false, "animal")
 	var cc: Dictionary = w.foods[w.foods.size() - 1]
 	var bites0 := int(cc["bites"])
-	w.player.vel = Vector2.ZERO
 	cc["p"] = w.player.position
-	for i in 3:
-		w._carcass_step(cc, 0.3)
-	check(cc["type"] == "carcass" and int(cc["bites"]) == bites0 - 1, "standing at a carcass chews a bite off (%d -> %d)" % [bites0, int(cc["bites"])])
-	check(String(w.foods[w.foods.size() - 1]["type"]) in ["meat", "heart"], "each bite pops a piece of meat")
+	var xp_c: float = main.run.xp
+	var lvl_c: int = main.run.level
+	for i in 12:
+		w._feed(Foods.eat_time("carcass", 0, float(main.run.stats["feed"])) / 10.0)
+	check(cc["type"] == "carcass" and int(cc["bites"]) == bites0 - 1, "standing at a carcass eats a bite (%d -> %d)" % [bites0, int(cc["bites"])])
+	check((main.run.xp > xp_c or main.run.level > lvl_c) and w.foods.size() == 1, "a bite goes straight to Progress, no pieces pop out")
 	# Ruminant: progress while calm, reset when hit
 	main.run.stats["ruminant"] = 1.0
 	var xr: float = main.run.xp
@@ -308,6 +361,13 @@ func _bot(w: World) -> Vector2:
 		var poi := w.nearest_poi()
 		if not poi.is_empty():
 			best = (poi["p"] as Vector2) - p.position
+	# stand still to eat when food is in reach and nothing dangerous is close
+	if danger.length() < 0.2:
+		if w.meal_src == "ground":
+			return Vector2.ZERO
+		for f in w.foods:
+			if w._edible(f) and (f["p"] as Vector2).distance_to(p.position) - float(f.get("r", 0.0)) < w.reach():
+				return Vector2.ZERO
 	var dir := best.normalized() + danger * 2.5
 	if dir.length() < 0.1:
 		dir = Vector2.from_angle(w.run.time)

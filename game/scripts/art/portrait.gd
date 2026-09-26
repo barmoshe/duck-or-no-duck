@@ -8,7 +8,7 @@ extends RefCounted
 
 const W := 60
 const H := 50
-const ZONE := {"mouth": "face", "eyes": "face", "head": "crown", "crown": "crown", "back": "back", "armor": "back",
+const ZONE := {"mouth": "face", "eyes": "face", "cheeks": "face", "head": "crown", "crown": "crown", "back": "back", "armor": "back",
 	"tail": "tail", "legs": "legs", "arms": "arms", "pattern": "body", "hide": "body", "shape": "body"}
 
 static var _cache := {}

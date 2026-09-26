@@ -17,6 +17,13 @@ v0.3 "reinvent" build, playable end to end. Headless tests, a balance report and
   - fish pools in the water
   - big kills leave carcasses you chew (Feeding Speed), and scavengers compete for them
   - diets: Carnivore, Piscivore, Herbivore, Vegan, Omnivore, Carrion, Ruminant; mushrooms give Progress
+- **Eating (v6, Crab's feeding model):**
+  - You stand still next to food and chew it, one piece at a time.
+  - Eating takes 0.35-0.5 s by type, longer for rarer pieces, and runs faster with more Feeding Speed. Every piece heals a little.
+  - Reach is Feeding Distance: the old "Pickup Range" vacuum is gone. Only hearts and mutagen are grabbed on touch.
+  - Moving pauses chewing, walking off drops the piece, and animals can steal it.
+  - Carcasses are eaten bite by bite, and each bite goes straight to Progress.
+  - New evolutions: **Cheek Pouch** (stores food in reach and eats it on the move; capacity 2/4/6, shown as HUD slots) and **Saliva** (Feeding Speed +25%).
 - **Evolution:**
   - levels 1-5, with rarity rising by level
   - an evolution tree: unlocks and bans

@@ -11,6 +11,7 @@ var marks: Array = []  # {p, r, t, dur, c} telegraph circles
 var chew_on := false  # the chewing ring over a carcass
 var chew_p := Vector2.ZERO
 var chew_frac := 0.0
+var chew_icon: Texture2D = null  # what's being eaten, shown inside the ring
 var slashes: Array = []  # {p, dir, r, t, dur, c, flip} crescent swipes
 var font: Font
 
@@ -107,8 +108,11 @@ func _draw() -> void:
 				draw_rect(Rect2(((cn["p"] as Vector2) + Vector2.from_angle(a) * d).floor(), Vector2(2, 2)), col3)
 	if chew_on:
 		var cp := chew_p.floor()
-		draw_circle(cp, 5.0, Color(Pal.INK, 0.6))
-		draw_arc(cp, 3.5, -PI * 0.5, -PI * 0.5 + TAU * clampf(chew_frac, 0.0, 1.0), 16, Pal.e("salmon"), 2.0)
+		draw_circle(cp, 8.0, Color(Pal.INK, 0.55))
+		draw_arc(cp, 7.0, -PI * 0.5, -PI * 0.5 + TAU * clampf(chew_frac, 0.0, 1.0), 24, Pal.e("lemon"), 2.0)
+		if chew_icon:
+			var isz := chew_icon.get_size()
+			draw_texture(chew_icon, (cp - isz * 0.5).floor())
 	for sl in slashes:
 		var u := float(sl["t"]) / float(sl["dur"])
 		var r := float(sl["r"])

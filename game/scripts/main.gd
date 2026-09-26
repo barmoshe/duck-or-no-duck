@@ -136,6 +136,12 @@ func _shot_timer() -> void:
 		await get_tree().process_frame
 		if _shot_scene in ["run", "night", "boss", "final"] and state == S.RUN:
 			world.input_dir = Vector2(cos(i * 0.02), sin(i * 0.013)) * 0.6
+		if _shot_scene == "eat" and i == _shot_frames - 25 and state == S.RUN:
+			# standing at a pile of food with a full Cheek Pouch: the chew ring and pouch slots
+			run.stats["pouch"] = 4.0
+			for k in 6:
+				var fd := world.spawn_food(world.player.position + Vector2(5 + k * 2, 2 - k), "fruit" if k % 2 == 0 else "meat", 3.0, k % 3)
+				fd["v"] = Vector2.ZERO
 	match _shot_scene:
 		"levelup":
 			queue.append({"kind": "level", "min": 0})

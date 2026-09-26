@@ -54,4 +54,5 @@ const ALL := {
 	"mandibles": {"anchor": Vector2i(0, 2), "at": "face", "layer": "front", "frames": [["kk..", ".kdk", "..k.", ".kdk", "kk.."], ["kkk.", "..kdk", "....", "..kdk", "kkk."]]},
 	"pincers": {"anchor": Vector2i(0, 2), "at": "face", "layer": "front", "frames": [["kk..", ".krk", "..k.", ".krk", "kk.."]]},
 	"sucker": {"anchor": Vector2i(0, 1), "at": "face", "layer": "front", "frames": [["kk.", "kPk", "kk."]]},
+	"cheeks": {"anchor": Vector2i(3, 0), "at": "face", "layer": "front", "frames": [["..kkk..", ".kFFFFk", "kFFFPPk", "kFFFFFk", ".kfFFfk", "..kkkk."]]},
 }

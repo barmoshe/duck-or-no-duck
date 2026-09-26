@@ -207,6 +207,7 @@ func tick(dt: float) -> void:
 
 
 ## Evolving: the old and new bodies flicker, like a mutation popping in.
+var eating := false  # the player is chewing (set by World every frame)
 var morph_frames: Array = []
 var morph_t := 0.0
 const MORPH_TIME := 0.6
@@ -244,6 +245,9 @@ func _animate() -> void:
 	elif vel.length() > 6.0 and stun <= 0.0:
 		var walk: Array = frames["walk"]
 		tex = walk[int(anim_t * (6.0 + vel.length() * 0.06)) % walk.size()]
+	elif eating:
+		# chewing: the mouth opens and closes
+		tex = frames["bite"][0] if int(anim_t * 6.0) % 2 == 1 else frames["idle"][0]
 	else:
 		var idle: Array = frames["idle"]
 		tex = idle[int(anim_t * 2.0) % idle.size()]
