@@ -67,6 +67,7 @@ v0.3 "reinvent" build, playable end to end. Headless tests, a balance report and
 `research/crab-ref/`: every evolution, specialisation, genetic, food and UI icon from the Crab wiki, plus `evolutions.md` (all 145 with numbers) and `mechanics.md` (eating, evolution rules, affinities, genetics). Reference only, never shipped. The wiki blocks curl for pages (read them through a browser); its `/images/` files download with a Chrome user-agent.
 
 ## Balance (bot, 4 seeds, Godot 4.7.2 on the Mac)
+- v7.3 attacks (Linux, first 330 s, 8 seeds, same bot): average level at the first boss 6.1 before and after; past the first boss 2/8 before, 0/8 after; kills 17.8 before, 14.5 after. Damage per second per attack is within a few percent of v7.2 on paper; the bot presses whenever something is in range and doesn't play windups or combos (stun, then Jaws). Watch boss 1 in real play.
 - v7.2 (Linux container, first 330 s, 8 seeds): average level at the first boss 6.0 on v7.1, 6.6 with v7.2 at food value 1.4, and 6.1 at 1.4 when the bot skips mushrooms; past the first boss about 1/8 in every setup. Food value is set to 1.3. The 4-seed full runs swing a lot (v7.1 here: [10, 6, 10, 6], 2/4 past the first boss), so tune from 8 or more seeds.
 - v7.1: end levels [12, 7, 7, 9]; past the first boss 2/4; final wins 1/4. The first boss now hits 25% softer with 15% less HP (v7 before that: 0/4 past it).
 - v7 vs v6 (Godot 4.6): end levels [10, 7, 7, 6] vs [5, 5, 8, 5]. Eating on the move levels faster.
