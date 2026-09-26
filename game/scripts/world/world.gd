@@ -174,7 +174,7 @@ func clear() -> void:
 	hot_t = 0.0
 	trip = 0.0
 	deaf = 0.0
-	Sfx.muffle = 0.0
+	Sfx.set_deaf(false)
 	burrows.clear()
 	pois.clear()
 	obst_grid.clear()
@@ -388,7 +388,7 @@ func step(dt: float) -> void:
 	dizzy = maxf(0.0, dizzy - dt)
 	trip = maxf(0.0, trip - dt)
 	deaf = maxf(0.0, deaf - dt)
-	Sfx.muffle = -18.0 if deaf > 0.0 else 0.0
+	Sfx.set_deaf(deaf > 0.0)
 	player.desired = input_dir if dizzy <= 0.0 else -input_dir
 	_hide_in_burrow(dt)
 	_rebuild_grid()
@@ -731,7 +731,7 @@ func shake_source(src: Dictionary, hard: bool = false) -> void:
 	var leaf := Pal.e("leaf") if String(src["fruit"]) != "pear" else Pal.e("grass")
 	fx.burst((src["p"] as Vector2) + Vector2(0, -24 if src["tall"] else -8), leaf, 5 + n * 2, 40.0, 1.0, 0.6, 60.0)
 	if n > 0:
-		Sfx.play("pop", randf_range(1.2, 1.4), -8.0)
+		Sfx.play("rustle", randf_range(0.95, 1.1))
 
 
 func _food_sources(dt: float) -> void:
@@ -976,7 +976,7 @@ func eat_shroom() -> bool:
 	shrooms.erase(sm)
 	bite_show = 0.25
 	player.eating = true
-	Sfx.play("slurp", 0.8)
+	Sfx.play("shroom", randf_range(0.95, 1.05))
 	_gain_xp(run.xp_need() * Pois.SHROOM_PROGRESS * (1.0 + float(run.stats["shroom_xp"]) / 100.0))
 	apply_fx(e[2])
 	return true
@@ -1043,7 +1043,7 @@ func _feed(dt: float) -> void:
 			n.queue_free()
 			foods.remove_at(i)
 			fx.burst(pp + Vector2(0, -12), Pal.e("peach"), 3, 30.0, 1.0, 0.3)
-			Sfx.play("pop", 1.5, -10.0)
+			Sfx.play("pouch", randf_range(0.95, 1.1))
 			_tip("pouch", "Cheek Pouch stores food nearby and eats it on the move")
 	if bite_cd > 0.0:
 		return
@@ -1080,7 +1080,7 @@ func _feed(dt: float) -> void:
 	# nothing left to eat: the finishing sparkle and sound
 	if done and _next_bite().is_empty():
 		fx.twinkle(pp + Vector2(player.face * 7.0, -player.r * 1.4), Pal.e("white"), 3)
-		Sfx.play("pop", 1.6, -6.0)
+		Sfx.play("eat_done")
 
 
 ## The piece you bite next: the one you're eating while it's still in reach, else the
@@ -1140,8 +1140,8 @@ func _bite_feedback(gain: float, healed: float, rar: int, type: String) -> void:
 		fx.text(head + Vector2(randf_range(-4, 4), 0), "+%d" % maxi(1, roundi(gain)), col)
 	if healed > 0.0:
 		fx.text(head + Vector2(randf_range(-4, 4), 8), "+%d HP" % ceili(healed), Pal.e("salmon"))
-		Sfx.play("heal", 1.3, -8.0)
-	Sfx.play("chomp" if type == "meat" else "slurp", randf_range(0.95, 1.1) + maxi(0, rar) * 0.08, -6.0)
+		Sfx.play("heal", 1.2, -4.0)
+	Sfx.play("bite_" + (type if type in ["fruit", "meat", "fish"] else "fruit"), randf_range(0.95, 1.08) + maxi(0, rar) * 0.05)
 
 
 ## An animal took a bite of this piece of food; the last bite finishes it.
@@ -1339,7 +1339,7 @@ func _reap() -> void:
 			var hk := float(run.stats["heal_kill"])
 			if hk > 0.0:
 				player.hp = minf(player.max_hp, player.hp + hk)
-			Sfx.play("pop", randf_range(0.8, 1.2), -3.0)
+			Sfx.play("kill", clampf(10.0 / a.r, 0.7, 1.3))
 		if a.is_boss:
 			bosses.on_boss_dead(a)
 		actors.remove_at(i)

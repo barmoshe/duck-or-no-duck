@@ -30,6 +30,8 @@ func run(m: Node) -> void:
 	_logic()
 	print("== food")
 	_food()
+	print("== sound")
+	_sound()
 	print("== simulated runs")
 	await _sim(480.0, 0.0, "early game")
 	await _sim(170.0, Run.FINAL_TIME - 5.0, "final boss")
@@ -160,6 +162,47 @@ func _logic() -> void:
 	check(not r.is_night(), "runs start in daylight")
 	r.time = Run.DAY_LEN * 0.7
 	check(r.is_night(), "night comes")
+
+
+func _sound() -> void:
+	# every sound builds clean: not silent, no overs, nothing broken
+	var bad: Array = []
+	for name in SfxSynth.ALL:
+		for v in int(SfxSynth.VARIANTS.get(name, 1)):
+			var b := SfxSynth.make(name, v)
+			var mx := 0.0
+			var ok := b.size() > 200
+			for x in b:
+				if is_nan(x):
+					ok = false
+					break
+				mx = maxf(mx, absf(x))
+			if not ok or mx < 0.05 or mx > 0.9:
+				bad.append("%s#%d (peak %.2f)" % [name, v, mx])
+	check(bad.is_empty(), "every sound builds clean %s" % [bad])
+	# every name the game plays exists
+	var missing: Array = []
+	var re := RegEx.new()
+	re.compile("Sfx\\.play\\(\"([a-z_]+)\"[,)]")
+	for path in _scripts("res://scripts"):
+		for m in re.search_all(FileAccess.get_file_as_string(path)):
+			if not SfxSynth.ALL.has(m.get_string(1)):
+				missing.append(m.get_string(1))
+	for aid in Attacks.ATTACK:
+		if not SfxSynth.ALL.has(String(Attacks.ATTACK[aid]["sfx"])):
+			missing.append(String(Attacks.ATTACK[aid]["sfx"]))
+	check(missing.is_empty(), "every sound the game plays exists %s" % [missing])
+	check(SfxSynth.LEVEL.size() >= SfxSynth.ALL.size(), "every sound has a mix level")
+
+
+func _scripts(dir: String) -> Array:
+	var out: Array = []
+	for f in DirAccess.get_files_at(dir):
+		if f.ends_with(".gd"):
+			out.append(dir + "/" + f)
+	for d in DirAccess.get_directories_at(dir):
+		out.append_array(_scripts(dir + "/" + d))
+	return out
 
 
 func _food() -> void:
@@ -368,11 +411,11 @@ func _food() -> void:
 	w.player.hp = w.player.max_hp
 	w.apply_fx({"deaf": 15.0, "trip": 10.0})
 	w.step(0.016)
-	check(Sfx.muffle < 0.0 and w.trip > 0.0, "Deafening muffles the sound; Hallucinogen swirls the colors")
+	check(Sfx.deaf and w.trip > 0.0, "Deafening muffles the sound; Hallucinogen swirls the colors")
 	w.deaf = 0.0
 	w.trip = 0.0
 	w.step(0.016)
-	check(Sfx.muffle == 0.0, "the sound comes back")
+	check(not Sfx.deaf, "the sound comes back")
 	check(Pois.identify_chance(0.0) == 0.0 and Pois.identify_chance(1.0) > 0.2 and Pois.identify_chance(1.0) < 0.3 and Pois.identify_chance(2.5) >= 1.0, "Senses: blind at 0, a quarter at 1, always right at 2.5")
 	w.shroom_known.clear()
 	main.run.stats["identify"] = 3.0

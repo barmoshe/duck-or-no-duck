@@ -1,33 +1,53 @@
 extends Node
-## Autoload "Sfx": every sound is synthesized into an AudioStreamWAV (no audio files).
-## Three music loops (day, night, boss) are built a slice per frame after boot and
-## crossfade with the game's state. Phone speakers can't play much below 250 Hz, so
-## basses sit higher. Web uses Stream playback (project setting), which is what works.
+## Autoload "Sfx": plays the sound effects (made by SfxSynth, no audio files) and the
+## three music loops (day, night, boss), which are built a slice per frame after boot and
+## crossfade with the game's state. Web uses Stream playback (project setting), so the
+## engine mixes and the bus effects below work there too.
+##
+## Mixing: effects go to the "SFX" bus and music to "Music", both into Master, which has a
+## limiter so a pile-up never crackles. Every sound has a level (LEVEL, dB) and a
+## priority; a sound picks a free voice, else takes the voice of a lower-priority or older
+## sound, so a flurry of hits never cuts off a level-up. A sound with variants plays a
+## random one. Deafening runs everything through a low-pass filter; big moments lower the
+## music for a moment (duck).
 
-const RATE := 22050
-
-var _streams := {}
-var _players: Array[AudioStreamPlayer] = []
-var _next := 0
+const RATE := SfxSynth.RATE
+const VOICES := 16
+var _streams := {}  # "name" or "name#v" -> AudioStreamWAV
+var _todo: Array = []  # sounds still to build, a few per frame after boot
+var _voices: Array = []  # {p: AudioStreamPlayer, name, prio, t}
 var _last := {}
 var _music := {}  # name -> AudioStreamPlayer
 var _bufs := {}  # name -> PackedFloat32Array being built
 var _pos := {}
 var _want := "day"
 var _order := ["day", "night", "boss"]
-var muffle := 0.0  # dB added to every sound and the music (a Deafening mushroom)
+var _duck_db := 0.0
+var _duck_t := 0.0
+var _sfx_bus := 0
+var _music_bus := 0
+var deaf := false  # a Deafening mushroom: everything muffled
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	for i in 12:
+	_buses()
+	for i in VOICES:
 		var p := AudioStreamPlayer.new()
+		p.bus = "SFX"
 		add_child(p)
-		_players.append(p)
-	_build_all()
+		_voices.append({"p": p, "name": "", "prio": 0, "t": 0})
+	# the sounds of the first seconds of play first, then the rest
+	var first := ["click", "hit", "whiff", "gulp", "bite_fruit", "bite_meat", "bite_fish", "hurt", "kill", "pouch", "eat_done", "dash", "levelup"]
+	for name in first + SfxSynth.ALL.keys():
+		if name in first and _todo.any(func(j: Array) -> bool: return j[0] == name):
+			continue
+		for v in int(SfxSynth.VARIANTS.get(name, 1)):
+			_todo.append([name, v])
 	for m in _order:
 		var mp := AudioStreamPlayer.new()
 		mp.volume_db = -80.0
+		mp.bus = "Music"
 		add_child(mp)
 		_music[m] = mp
 		var b := PackedFloat32Array()
@@ -36,19 +56,49 @@ func _ready() -> void:
 		_pos[m] = 0
 
 
+## SFX and Music buses into Master; a limiter on Master; a low-pass on each for Deafening.
+func _buses() -> void:
+	for bus_name in ["SFX", "Music"]:
+		if AudioServer.get_bus_index(bus_name) < 0:
+			AudioServer.add_bus()
+			var i := AudioServer.bus_count - 1
+			AudioServer.set_bus_name(i, bus_name)
+			AudioServer.set_bus_send(i, "Master")
+			var lp := AudioEffectLowPassFilter.new()
+			lp.cutoff_hz = 650.0
+			AudioServer.add_bus_effect(i, lp)
+			AudioServer.set_bus_effect_enabled(i, 0, false)
+	_sfx_bus = AudioServer.get_bus_index("SFX")
+	_music_bus = AudioServer.get_bus_index("Music")
+	if AudioServer.get_bus_effect_count(0) == 0:
+		var lim := AudioEffectHardLimiter.new()
+		lim.ceiling_db = -0.5
+		AudioServer.add_bus_effect(0, lim)
+
+
 func _process(dt: float) -> void:
-	# build the music a slice at a time
+	# every frame: a slice of music (so it starts right away), then about 3 ms of sound effects
 	for m in _order:
 		var b: PackedFloat32Array = _bufs[m]
 		if int(_pos[m]) < b.size():
 			_music_slice(m, 5000)
 			if int(_pos[m]) >= b.size():
-				(_music[m] as AudioStreamPlayer).stream = _wav(_bufs[m], true)
+				var w := SfxSynth.wav(_bufs[m])
+				w.loop_mode = AudioStreamWAV.LOOP_FORWARD
+				w.loop_end = b.size()
+				(_music[m] as AudioStreamPlayer).stream = w
 				(_music[m] as AudioStreamPlayer).play()
 			break
+	var t0 := Time.get_ticks_usec()
+	while not _todo.is_empty() and Time.get_ticks_usec() - t0 < 3000:
+		var job: Array = _todo.pop_front()
+		_ensure(String(job[0]), int(job[1]))
+	_duck_t = maxf(0.0, _duck_t - dt)
+	if _duck_t <= 0.0:
+		_duck_db = move_toward(_duck_db, 0.0, dt * 12.0)
 	for m in _order:
 		var mp: AudioStreamPlayer = _music[m]
-		var target := (-13.0 + muffle) if (m == _want and Game.music and Game.sound) else -60.0
+		var target := (-13.0 + _duck_db) if (m == _want and Game.music and Game.sound) else -60.0
 		mp.volume_db = move_toward(mp.volume_db, target, dt * 30.0)
 
 
@@ -56,167 +106,76 @@ func music(name: String) -> void:
 	_want = name
 
 
+## Build one sound now if it isn't built yet.
+func _ensure(name: String, v: int) -> AudioStreamWAV:
+	var key := name if v == 0 else "%s#%d" % [name, v]
+	if not _streams.has(key):
+		_streams[key] = SfxSynth.wav(SfxSynth.make(name, v))
+	return _streams[key]
+
+
 func play(name: String, pitch: float = 1.0, vol_db: float = 0.0) -> void:
-	if not Game.sound or not _streams.has(name):
+	if not Game.sound:
 		return
 	var now := Time.get_ticks_msec()
 	if now - int(_last.get(name, 0)) < 40:
 		return
 	_last[name] = now
-	var p := _players[_next]
-	_next = (_next + 1) % _players.size()
-	p.stream = _streams[name]
-	p.pitch_scale = pitch * randf_range(0.97, 1.03)
-	p.volume_db = vol_db + muffle
+	var nv := int(SfxSynth.VARIANTS.get(name, 1))
+	var stream := _ensure(name, randi() % nv if nv > 1 else 0)
+	var prio := int(SfxSynth.PRIORITY.get(name, 1))
+	var voice := _voice(name, prio)
+	if voice.is_empty():
+		return
+	var p: AudioStreamPlayer = voice["p"]
+	voice["name"] = name
+	voice["prio"] = prio
+	voice["t"] = now
+	p.stream = stream
+	p.pitch_scale = pitch * randf_range(0.96, 1.04)
+	p.volume_db = float(SfxSynth.LEVEL.get(name, -6.0)) + vol_db
 	p.play()
+	if SfxSynth.DUCK.has(name):
+		var dk: Array = SfxSynth.DUCK[name]
+		_duck_db = minf(_duck_db, float(dk[0]))
+		_duck_t = maxf(_duck_t, float(dk[1]))
 
 
-func _build_all() -> void:
-	_streams["chomp"] = _wav(_mix([_tone(260, 130, 0.09, 0.6, "sine"), _noise(0.05, 0.35, 0.6)]))
-	_streams["thud"] = _wav(_mix([_tone(300, 150, 0.12, 0.7, "sine"), _noise(0.06, 0.3, 0.3)]))
-	_streams["whip"] = _wav(_noise(0.14, 0.5, 0.15, true))
-	_streams["spit"] = _wav(_mix([_tone(700, 300, 0.1, 0.35, "square"), _noise(0.08, 0.2, 0.5)]))
-	_streams["peck"] = _wav(_tone(1400, 900, 0.04, 0.4, "square"))
-	_streams["snap"] = _wav(_mix([_tone(900, 400, 0.05, 0.5, "square"), _noise(0.04, 0.4, 0.8)]))
-	_streams["song"] = _wav(_arp([659.0, 784.0, 988.0], 0.07, 0.25))
-	_streams["quack"] = _wav(_quack(1.0))
-	_streams["quack_big"] = _wav(_quack(0.6))
-	_streams["honk"] = _wav(_honk())
-	_streams["pop"] = _wav(_tone(500, 1000, 0.08, 0.45, "sine"))
-	_streams["slurp"] = _wav(_tone(350, 750, 0.1, 0.35, "sine"))
-	_streams["hurt"] = _wav(_mix([_tone(420, 180, 0.16, 0.45, "square"), _noise(0.1, 0.25, 0.4)]))
-	_streams["dash"] = _wav(_noise(0.18, 0.45, 0.2, true))
-	_streams["flap"] = _wav(_noise(0.28, 0.5, 0.12, true))
-	_streams["splash"] = _wav(_mix([_noise(0.3, 0.5, 0.5), _tone(600, 250, 0.2, 0.2, "sine")]))
-	_streams["levelup"] = _wav(_arp([523.0, 659.0, 784.0, 1047.0], 0.07, 0.3))
-	_streams["evolve"] = _wav(_arp([784.0, 988.0, 1175.0, 1568.0], 0.06, 0.3))
-	_streams["stage"] = _wav(_arp([392.0, 523.0, 659.0, 784.0, 1047.0], 0.08, 0.3))
-	_streams["mutagen"] = _wav(_arp([988.0, 1319.0], 0.05, 0.3))
-	_streams["poi"] = _wav(_arp([659.0, 880.0, 1175.0], 0.08, 0.3))
-	_streams["heal"] = _wav(_arp([523.0, 784.0, 1047.0], 0.1, 0.25))
-	_streams["die"] = _wav(_tone(520, 120, 0.7, 0.45, "square"))
-	_streams["click"] = _wav(_tone(1100, 1300, 0.03, 0.3, "square"))
-	_streams["win"] = _wav(_arp([523.0, 659.0, 784.0, 1047.0, 784.0, 1047.0, 1319.0, 1568.0], 0.12, 0.3))
-	_streams["hiss"] = _wav(_noise(0.3, 0.35, 0.9))
-	_streams["boss"] = _wav(_mix([_tone(330, 250, 0.8, 0.4, "square"), _tone(495, 370, 0.8, 0.25, "square")]))
-	_streams["night"] = _wav(_arp([440.0, 330.0, 262.0], 0.2, 0.25))
-	_streams["wind"] = _wav(_noise(0.9, 0.35, 0.1, true))
+## A voice for a new sound: a free one; else, past this sound's own voice limit, its
+## oldest; else the oldest of the lowest priority, if that's not above this one.
+func _voice(name: String, prio: int) -> Dictionary:
+	var mine: Array = []
+	var free := {}
+	for vc in _voices:
+		var p: AudioStreamPlayer = vc["p"]
+		if not p.playing:
+			if free.is_empty():
+				free = vc
+		elif vc["name"] == name:
+			mine.append(vc)
+	if mine.size() >= int(SfxSynth.MAX_VOICES.get(name, 3)):
+		mine.sort_custom(func(a: Dictionary, c: Dictionary) -> bool: return int(a["t"]) < int(c["t"]))
+		return mine[0]
+	if not free.is_empty():
+		return free
+	var best := {}
+	for vc in _voices:
+		if int(vc["prio"]) > prio:
+			continue
+		if best.is_empty() or int(vc["prio"]) < int(best["prio"]) or (int(vc["prio"]) == int(best["prio"]) and int(vc["t"]) < int(best["t"])):
+			best = vc
+	return best
 
 
-# ------------------------------------------------------------------ synthesis
-func _wav(buf: PackedFloat32Array, loop: bool = false) -> AudioStreamWAV:
-	var bytes := PackedByteArray()
-	bytes.resize(buf.size() * 2)
-	for i in buf.size():
-		bytes.encode_s16(i * 2, int(clampf(buf[i], -1.0, 1.0) * 30000.0))
-	var w := AudioStreamWAV.new()
-	w.format = AudioStreamWAV.FORMAT_16_BITS
-	w.mix_rate = RATE
-	w.data = bytes
-	if loop:
-		w.loop_mode = AudioStreamWAV.LOOP_FORWARD
-		w.loop_end = buf.size()
-	return w
-
-
-func _env(t: float, dur: float, atk: float = 0.004) -> float:
-	if t < atk:
-		return t / atk
-	return pow(maxf(0.0, 1.0 - (t - atk) / maxf(0.001, dur - atk)), 1.6)
-
-
-func _osc(ph: float, kind: String) -> float:
-	match kind:
-		"square":
-			return 1.0 if fposmod(ph, 1.0) < 0.5 else -1.0
-		"saw":
-			return fposmod(ph, 1.0) * 2.0 - 1.0
-		"tri":
-			return absf(fposmod(ph, 1.0) * 4.0 - 2.0) - 1.0
-	return sin(ph * TAU)
-
-
-func _tone(f0: float, f1: float, dur: float, amp: float, kind: String) -> PackedFloat32Array:
-	var n := int(RATE * dur)
-	var b := PackedFloat32Array()
-	b.resize(n)
-	var ph := 0.0
-	for i in n:
-		var t := float(i) / RATE
-		ph += lerpf(f0, f1, t / dur) / RATE
-		b[i] = _osc(ph, kind) * _env(t, dur) * amp * (0.6 if kind == "square" else 1.0)
-	return b
-
-
-func _noise(dur: float, amp: float, bright: float, swell: bool = false) -> PackedFloat32Array:
-	var n := int(RATE * dur)
-	var b := PackedFloat32Array()
-	b.resize(n)
-	var lp := 0.0
-	for i in n:
-		var t := float(i) / RATE
-		lp += ((randf() * 2.0 - 1.0) - lp) * bright
-		var e := sin(t / dur * PI) if swell else _env(t, dur, 0.002)
-		b[i] = lp * e * amp * 2.0
-	return b
-
-
-func _mix(parts: Array) -> PackedFloat32Array:
-	var n := 0
-	for p in parts:
-		n = maxi(n, (p as PackedFloat32Array).size())
-	var b := PackedFloat32Array()
-	b.resize(n)
-	for p in parts:
-		var pb: PackedFloat32Array = p
-		for i in pb.size():
-			b[i] += pb[i]
-	return b
-
-
-func _arp(freqs: Array, step: float, amp: float) -> PackedFloat32Array:
-	var note := step * 2.5
-	var n := int(RATE * (step * freqs.size() + note))
-	var b := PackedFloat32Array()
-	b.resize(n)
-	for k in freqs.size():
-		var st := int(k * step * RATE)
-		var f := float(freqs[k])
-		for i in int(note * RATE):
-			if st + i >= n:
-				break
-			var t := float(i) / RATE
-			b[st + i] += (_osc(t * f, "square") * 0.35 + sin(t * f * TAU) * 0.65) * _env(t, note) * amp
-	return b
-
-
-func _quack(pitch: float) -> PackedFloat32Array:
-	var dur := 0.26 / pitch
-	var n := int(RATE * dur)
-	var b := PackedFloat32Array()
-	b.resize(n)
-	var ph := 0.0
-	for i in n:
-		var t := float(i) / RATE
-		var u := t / dur
-		ph += (620.0 - 260.0 * u + 70.0 * sin(u * 10.0)) * pitch / RATE
-		var nasal := _osc(ph, "saw") * (0.55 + 0.45 * sin(ph * TAU * 3.0))
-		b[i] = nasal * minf(1.0, u * 25.0) * pow(maxf(0.0, 1.0 - u), 0.6) * 0.55
-	return b
-
-
-func _honk() -> PackedFloat32Array:
-	var dur := 0.4
-	var n := int(RATE * dur)
-	var b := PackedFloat32Array()
-	b.resize(n)
-	var ph := 0.0
-	for i in n:
-		var t := float(i) / RATE
-		var u := t / dur
-		ph += (420.0 + 40.0 * sin(u * 30.0)) / RATE
-		b[i] = (_osc(ph, "saw") * 0.6 + _osc(ph * 1.5, "square") * 0.3) * minf(1.0, u * 20.0) * pow(1.0 - u, 0.4) * 0.5
-	return b
+## Deafening: muffle the sound effects and the music (a low-pass filter), or clear it.
+func set_deaf(on: bool) -> void:
+	if on == deaf:
+		return
+	deaf = on
+	AudioServer.set_bus_effect_enabled(_sfx_bus, 0, on)
+	AudioServer.set_bus_effect_enabled(_music_bus, 0, on)
+	AudioServer.set_bus_volume_db(_sfx_bus, -6.0 if on else 0.0)
+	AudioServer.set_bus_volume_db(_music_bus, -6.0 if on else 0.0)
 
 
 # A soft chiptune loop per mood: pentatonic plucks over a pad, bass kept above 110 Hz.
@@ -238,15 +197,15 @@ func _music_slice(m: String, count: int) -> void:
 		var chord: Array = chords[bar]
 		var v := 0.0
 		for f in chord:
-			v += _osc(t * float(f), "tri") * 0.05
+			v += SfxSynth.osc(t * float(f), "tri") * 0.05
 		var bi := int(t / beat)
 		var tb := fmod(t, beat)
 		var root := float(chord[0]) * (0.5 if m != "boss" else 1.0)
-		v += _osc(t * root, "square") * 0.05 * (1.0 if bi % 2 == 0 else 0.6) * exp(-tb * 6.0)
+		v += SfxSynth.osc(t * root, "pulse") * 0.05 * (1.0 if bi % 2 == 0 else 0.6) * exp(-tb * 6.0)
 		var h := (bi * 7 + bar * 5) % 11
 		if h < (5 if m == "day" else (3 if m == "night" else 7)):
 			var f2: float = scale[(bi * 3 + bar * 2) % scale.size()] * (0.5 if m == "night" else 1.0)
-			v += _osc(tb * f2, "square") * exp(-tb * 14.0) * 0.1 + sin(tb * f2 * TAU) * exp(-tb * 10.0) * 0.1
+			v += SfxSynth.osc(tb * f2, "pulse") * exp(-tb * 14.0) * 0.1 + sin(tb * f2 * TAU) * exp(-tb * 10.0) * 0.1
 		if m == "boss" and bi % 4 == 0:
 			v += (randf() * 2.0 - 1.0) * exp(-tb * 40.0) * 0.15
 		b[i] = v

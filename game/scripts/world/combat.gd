@@ -193,7 +193,7 @@ func fire(id: String) -> bool:
 		# nothing in reach: a swing at the air, so the button always answers
 		p.bite_t = 0.15
 		w.fx.slash(p.position + dir * (p.r + 6.0) + Vector2(0, -p.r * 0.8), dir, 7.0, Color(1, 1, 1, 0.7), 0.14)
-		Sfx.play(String(spec.get("sfx", "chomp")), randf_range(1.15, 1.3), -12.0)
+		Sfx.play("whiff", randf_range(0.9, 1.1))
 		return false
 	var windup := float(spec.get("windup", 0.0))
 	p.bite_t = windup + 0.15
@@ -202,6 +202,7 @@ func fire(id: String) -> bool:
 	# the tell: a lean toward the target while the attack winds up
 	if windup > 0.05:
 		w.fx.anim("tell", p.position + Vector2(0, -p.r), dir, windup, _col(spec), p.r)
+		Sfx.play("tell", 1.0 + (0.2 - windup))
 	if shape in ["line", "arc"] and id != "peck_flurry":
 		p.start_dash(dir * 60.0, 0.05)
 	if windup > 0.0:
@@ -258,6 +259,7 @@ func _land(id: String, dir: Vector2, tid: int, dmg: float) -> void:
 	# a bite whose target got away swings at the air
 	if shape in ["bite", "lunge"] and (t == null or (shape == "bite" and (t as Actor).position.distance_to(p.position) - (t as Actor).r > rng + 8.0)):
 		w.fx.slash(p.position + dir * (p.r + 6.0) + Vector2(0, -p.r * 0.8), dir, 7.0, Color(1, 1, 1, 0.7), 0.14)
+		Sfx.play("whiff", randf_range(0.9, 1.1))
 		return
 	if t != null:
 		dir = ((t as Actor).position - p.position).normalized()
@@ -468,6 +470,7 @@ func _shots(dt: float) -> void:
 						hit(a, float(s["dmg"]), w.player if not s["hostile"] else null, {})
 				w.fx.ring(pos, 2.0, rad, 0.3, Pal.c("snow", 4))
 				w.fx.anim("yolk", pos, Vector2.RIGHT, 0.5, Pal.e("lemon"), rad)
+				Sfx.play("crack", randf_range(0.95, 1.05))
 				w.fx.burst(pos, Pal.c("gold", 3), 10, 60.0, 1.0, 0.4)
 				done = true
 		else:
@@ -489,6 +492,7 @@ func _shots(dt: float) -> void:
 						if not s["hostile"]:
 							var sc := Pal.e(String(s["col"]))
 							w.fx.anim("splat" if float(s["poison"]) <= 0.0 else "bubbles", body, (s["v"] as Vector2).normalized(), 0.4 if float(s["poison"]) <= 0.0 else float(s["poison_t"]), sc, a2.r)
+							Sfx.play("splat" if float(s["poison"]) <= 0.0 else "poison", randf_range(0.9, 1.15))
 						# Spit: the glob splashes what's next to the target
 						if float(s["splash"]) > 0.0:
 							for o3 in w.near(a2.position, float(s["splash"]) + 12.0):
@@ -520,7 +524,7 @@ func _animal_attacks(dt: float) -> void:
 					w.fx.slash(t.position + Vector2(0, -t.r * 0.8), (t.position - a.position).normalized(), t.r + 5.0, Pal.c("red", 4) if t.is_player else Color.WHITE, 0.16)
 					a.bite_t = 0.2
 					if a.is_ally:
-						Sfx.play("chomp", 1.4, -8.0)
+						Sfx.play("hit", 1.3, -6.0)
 				a.attack_cd = 1.0 + randf() * 0.4
 			continue
 		if a.state != "chase" or a.attack_cd > 0.0 or not World.valid(a.target):
@@ -615,6 +619,11 @@ func hit(t: Actor, amount: float, src: Actor, opts: Dictionary) -> void:
 		w.fx.text(head + Vector2(randf_range(-3, 3), 0), str(ceili(dmg)) + ("!" if crit else ""), Pal.c("gold", 4) if crit else Color.WHITE, crit)
 		if crit:
 			w.hitstop = 0.03
+		if src == p:
+			# the impact: bigger animals sound deeper
+			Sfx.play("crit" if crit else "hit", clampf(10.0 / t.r, 0.7, 1.3))
+			if float(opts.get("stun", 0.0)) > 0.0:
+				Sfx.play("stun", randf_range(0.95, 1.1))
 
 
 # ------------------------------------------------------------------ buttons

@@ -11,23 +11,23 @@ extends RefCounted
 ## 1 u on the cards). windup: seconds from the press to the hit. "col" colors its range
 ## marker and effects; the attack's own animation is drawn by Fx under its id.
 const ATTACK := {
-	"gulp": {"cd": 0.75, "range": 20.0, "shape": "bite", "windup": 0.0, "scale": "physical", "coef": 1.1, "sfx": "chomp", "col": "leaf"},
-	"headbutt": {"cd": 1.0, "range": 18.0, "shape": "line", "width": 12.0, "windup": 0.12, "scale": "physical", "coef": 1.4, "knock": 130.0, "stun": 0.4, "sfx": "thud", "col": "amber"},
-	"jaws": {"cd": 0.85, "range": 18.0, "shape": "arc", "arc": 35.0, "windup": 0.08, "scale": "physical", "coef": 1.45, "sfx": "chomp", "col": "white"},
-	"tail_whip": {"cd": 1.6, "range": 30.0, "shape": "circle", "windup": 0.1, "scale": "physical", "coef": 0.8, "knock": 140.0, "sfx": "whip", "col": "peach"},
+	"gulp": {"cd": 0.75, "range": 20.0, "shape": "bite", "windup": 0.0, "scale": "physical", "coef": 1.1, "sfx": "gulp", "col": "leaf"},
+	"headbutt": {"cd": 1.0, "range": 18.0, "shape": "line", "width": 12.0, "windup": 0.12, "scale": "physical", "coef": 1.4, "knock": 130.0, "stun": 0.4, "sfx": "bonk", "col": "amber"},
+	"jaws": {"cd": 0.85, "range": 18.0, "shape": "arc", "arc": 35.0, "windup": 0.08, "scale": "physical", "coef": 1.45, "sfx": "crunch", "col": "white"},
+	"tail_whip": {"cd": 1.6, "range": 30.0, "shape": "circle", "windup": 0.1, "scale": "physical", "coef": 0.8, "knock": 140.0, "sfx": "swoosh", "col": "peach"},
 	"spit": {"cd": 0.9, "range": 120.0, "shape": "shot", "speed": 170.0, "windup": 0.0, "scale": "ability", "coef": 0.8, "splash": 14.0, "ramp": "green", "sfx": "spit", "col": "leaf"},
-	"charge": {"cd": 2.2, "range": 70.0, "shape": "lunge", "width": 14.0, "windup": 0.15, "scale": "physical", "coef": 1.9, "knock": 180.0, "sfx": "thud", "col": "orange"},
-	"stinger": {"cd": 2.0, "range": 140.0, "shape": "shot", "speed": 240.0, "windup": 0.0, "scale": "ability", "coef": 0.6, "poison": 3.0, "poison_t": 5.0, "ramp": "purple", "sfx": "spit", "col": "grape"},
+	"charge": {"cd": 2.2, "range": 70.0, "shape": "lunge", "width": 14.0, "windup": 0.15, "scale": "physical", "coef": 1.9, "knock": 180.0, "sfx": "charge", "col": "orange"},
+	"stinger": {"cd": 2.0, "range": 140.0, "shape": "shot", "speed": 240.0, "windup": 0.0, "scale": "ability", "coef": 0.6, "poison": 3.0, "poison_t": 5.0, "ramp": "purple", "sfx": "zip", "col": "grape"},
 	"peck_flurry": {"cd": 1.2, "range": 26.0, "shape": "line", "width": 8.0, "windup": 0.0, "scale": "physical", "coef": 0.45, "hits": 3, "crit_bonus": 10.0, "sfx": "peck", "col": "lemon"},
-	"egg_toss": {"cd": 2.6, "range": 110.0, "shape": "lob", "flight": 0.5, "windup": 0.0, "scale": "ability", "coef": 1.4, "radius": 28.0, "sfx": "pop", "col": "lemon"},
-	"mud_splash": {"cd": 2.6, "range": 36.0, "shape": "circle", "windup": 0.05, "scale": "ability", "coef": 0.6, "slow": 0.5, "pool": 2.5, "ramp": "brown", "sfx": "splash", "col": "bark"},
-	"pincer_snap": {"cd": 1.3, "range": 20.0, "shape": "arc", "arc": 25.0, "windup": 0.1, "scale": "physical", "coef": 0.9, "hits": 2, "bleed": 5.0, "sfx": "snap", "col": "red"},
+	"egg_toss": {"cd": 2.6, "range": 110.0, "shape": "lob", "flight": 0.5, "windup": 0.0, "scale": "ability", "coef": 1.4, "radius": 28.0, "sfx": "toss", "col": "lemon"},
+	"mud_splash": {"cd": 2.6, "range": 36.0, "shape": "circle", "windup": 0.05, "scale": "ability", "coef": 0.6, "slow": 0.5, "pool": 2.5, "ramp": "brown", "sfx": "mud", "col": "bark"},
+	"pincer_snap": {"cd": 1.3, "range": 20.0, "shape": "arc", "arc": 25.0, "windup": 0.1, "scale": "physical", "coef": 0.9, "hits": 2, "bleed": 5.0, "sfx": "snip", "col": "red"},
 	"charm_song": {"cd": 4.5, "range": 80.0, "shape": "bite", "windup": 0.3, "scale": "ability", "coef": 0.5, "sfx": "song", "col": "rose"},
 	"quack": {"cd": 2.6, "range": 64.0, "shape": "cone", "arc": 35.0, "windup": 0.1, "scale": "ability", "coef": 0.6, "stun": 0.9, "sfx": "quack", "col": "amber"},
-	"tentacle_lash": {"cd": 1.2, "range": 40.0, "shape": "line", "width": 10.0, "windup": 0.08, "scale": "ability", "coef": 0.55, "hits": 2, "slow": 0.4, "pull": 150.0, "sfx": "whip", "col": "grape"},
-	"kick": {"cd": 1.0, "range": 16.0, "shape": "arc", "arc": 50.0, "windup": 0.06, "scale": "physical", "coef": 1.3, "knock": 190.0, "bowl": 0.5, "sfx": "thud", "col": "sand"},
-	"constrict": {"cd": 1.6, "range": 18.0, "shape": "bite", "windup": 0.1, "scale": "physical", "coef": 0.35, "hits": 4, "hold": 1.2, "bleed": 4.0, "sfx": "snap", "col": "pine"},
-	"feather_darts": {"cd": 1.5, "range": 130.0, "shape": "shot", "speed": 230.0, "windup": 0.0, "scale": "ability", "coef": 0.5, "count": 3, "pierce": 1, "ramp": "duck", "sfx": "whip", "col": "white"},
+	"tentacle_lash": {"cd": 1.2, "range": 40.0, "shape": "line", "width": 10.0, "windup": 0.08, "scale": "ability", "coef": 0.55, "hits": 2, "slow": 0.4, "pull": 150.0, "sfx": "lash", "col": "grape"},
+	"kick": {"cd": 1.0, "range": 16.0, "shape": "arc", "arc": 50.0, "windup": 0.06, "scale": "physical", "coef": 1.3, "knock": 190.0, "bowl": 0.5, "sfx": "kick", "col": "sand"},
+	"constrict": {"cd": 1.6, "range": 18.0, "shape": "bite", "windup": 0.1, "scale": "physical", "coef": 0.35, "hits": 4, "hold": 1.2, "bleed": 4.0, "sfx": "squeeze", "col": "pine"},
+	"feather_darts": {"cd": 1.5, "range": 130.0, "shape": "shot", "speed": 230.0, "windup": 0.0, "scale": "ability", "coef": 0.5, "count": 3, "pierce": 1, "ramp": "duck", "sfx": "fwip", "col": "white"},
 }
 ## What only this attack does, for its card.
 const TRAIT := {
