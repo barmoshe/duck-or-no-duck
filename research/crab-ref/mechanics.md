@@ -41,6 +41,16 @@ Pouch, Saliva, Slow Metabolism, Scavenger (read 2026-09-26); everythingiscrab.or
 - **Diet bonuses** add up: Herbivore/Vegan (fruit), Piscivore (fish), Carnivore (meat),
   Scavenger (fish and meat you did not kill), Omnivore (all).
 
+## The use button (E)
+
+- Crab has one context button: E on a keyboard, X on a pad. A prompt appears when you are
+  next to something you can use, and you press E to use it: eat a mushroom, or open a
+  point of interest (a "?" spot, then pick one of two or three options). Guides warn
+  against pressing E "as soon as the prompt appears" at mushrooms without reading them.
+  Trees are not an E action; you bump them to shake fruit loose.
+- Sources (search results, 2026-09-26): Everything is Crab wiki Map page, Neoseeker
+  Points of Interest, TheGamer beginner guide.
+
 ## Mushrooms
 
 Sources (read through web search on 2026-09-26; the container blocks the pages themselves):

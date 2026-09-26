@@ -322,29 +322,37 @@ func _food() -> void:
 	check(dealt.size() == w.shroom_fx.size(), "no two looks share an effect")
 	var sm0: Dictionary = w._place_shroom(w.player.position + Vector2(3, 0))
 	check(not w.shroom_in_reach().is_empty(), "a mushroom at your feet is in reach")
-	for i in 30:
+	for i in 120:
 		w._pickups(0.016)
-	check(w.shrooms.size() == 1, "crossing a mushroom (half a second) doesn't eat it")
+	check(w.shrooms.size() == 1, "standing on a mushroom doesn't eat it")
+	check(String(w.interact_target().get("kind", "")) == "shroom" and String(w.interact_target()["label"]) == "EAT", "E offers to eat the mushroom at your feet")
 	var xs: float = main.run.xp
 	var ls: int = main.run.level
 	var eff := w.shroom_effect(sm0)
-	for i in 30:
-		w._pickups(0.016)
-	check(w.shrooms.is_empty(), "standing on a mushroom for a moment eats it")
+	check(w.interact(), "E eats it")
+	check(w.shrooms.is_empty(), "the mushroom is gone once eaten")
 	check(main.run.xp > xs or main.run.level > ls, "every mushroom gives some Progress")
 	check(w.shroom_known.has(int(sm0["look"])), "once eaten, you know what that look does")
 	check(not w.eat_shroom(), "nothing to eat when no mushroom is in reach")
-	var sm1: Dictionary = w._place_shroom(w.player.position + Vector2(3, 0))
-	for i in 35:
-		w._pickups(0.016)
-	w.player.position += Vector2(60, 0)
-	w._pickups(0.016)
-	w.player.position -= Vector2(60, 0)
-	for i in 35:
-		w._pickups(0.016)
-	check(w.shrooms.has(sm1), "stepping off starts the chew over")
-	(sm1["n"] as Node).queue_free()
-	w.shrooms.erase(sm1)
+	# points of interest open with E too, not by walking into them
+	check(not w.pois.is_empty(), "the map has ? spots")
+	var poi0: Dictionary = w.pois[0]
+	var back: Vector2 = w.player.position
+	var opened := []
+	var on_poi := func(kind: String) -> void: opened.append(kind)
+	w.poi_choice.connect(on_poi)
+	w.player.position = poi0["p"]
+	w._poi_check()
+	check(opened.is_empty() and not poi0["used"], "walking into a ? spot doesn't open it")
+	check(String(w.interact_target().get("kind", "")) == "poi", "E offers the ? spot you're standing at")
+	check(w.interact() and opened.size() == 1 and poi0["used"], "E opens it, once")
+	check(w.interact_target().is_empty() or String(w.interact_target()["kind"]) != "poi" or not is_same(w.interact_target()["ref"], poi0), "a used spot isn't offered again")
+	w.poi_choice.disconnect(on_poi)
+	# close the choice screen main opened, without taking an option
+	main.poi_screen.hide_screen()
+	main.get_tree().paused = false
+	main._set_state(main.S.RUN)
+	w.player.position = back
 	check(String(eff[1]) in ["good", "side", "bad"], "the effect has a kind (%s)" % eff[0])
 	w.player.hp = w.player.max_hp
 	w.player.poison_t = 0.0
@@ -369,7 +377,7 @@ func _food() -> void:
 	w.shroom_known.clear()
 	main.run.stats["identify"] = 3.0
 	var seen: Dictionary = w._place_shroom(w.player.position + Vector2(40, 0))
-	w._shrooms_near(0.016)
+	w._shrooms_near()
 	check(w.shroom_known.has(int(seen["look"])), "high Senses names a mushroom on sight")
 	main.run.stats["identify"] = 0.0
 	for sm in w.shrooms:
@@ -430,10 +438,13 @@ func _best_card(r: Run, hand: Array) -> int:
 
 func _bot(w: World) -> Vector2:
 	var p := w.player
-	# stop on mushrooms it doesn't know to be bad
-	var sm := w.shroom_in_reach()
-	if not sm.is_empty() and p.hp > p.max_hp * 0.4 and (not w.shroom_known.has(int(sm["look"])) or String(w.shroom_effect(sm)[1]) != "bad"):
-		return Vector2.ZERO
+	# press E at ? spots, and on mushrooms it doesn't know to be bad
+	var t := w.interact_target()
+	if not t.is_empty():
+		if String(t["kind"]) == "poi":
+			w.interact()
+		elif not w.shroom_known.has(int(t["ref"]["look"])) or String(w.shroom_effect(t["ref"])[1]) != "bad":
+			w.interact()
 	# hurt: run for the nearest burrow and hide
 	if p.hp < p.max_hp * 0.4:
 		var nb := Vector2.ZERO

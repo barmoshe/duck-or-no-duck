@@ -1,7 +1,7 @@
 class_name Pois
 extends RefCounted
-## Points of interest (Crab's "?" markers): walk in, pick one of the options, the rest
-## are gone. Each kind only appears in certain terrains. Effects are read by
+## Points of interest (Crab's "?" markers): walk up, press E, pick one of the options,
+## the rest are gone. Each kind only appears in certain terrains. Effects are read by
 ## World.apply_option: heal, bonus (permanent stats), buff (timed), xp, mutagen,
 ## hp_cost, ally, evo (open an evolution hand), random_evo, time (night/day), fruit,
 ## mushrooms, parent (an angry Alpha shows up), affinity, gamble; mushroom effects add
@@ -58,9 +58,9 @@ const ALL := {
 		{"name": "Coin Flip", "desc": "Win: a burst of XP. Lose: 40% HP.", "fx": {"gamble": true}}]},
 }
 
-## Mushrooms, after Crab: you choose to eat one (stop on it for SHROOM_CHEW seconds;
-## walking straight through leaves it), every one gives a little Progress on top of its
-## effect, and each look keeps one effect all run.
+## Mushrooms, as Crab does them: you choose to eat one (E, when the prompt shows), every
+## one gives a little Progress on top of its effect, and each look keeps one effect all
+## run.
 ## A look is a cap color and a shape; at the start of a run the looks are dealt a random
 ## effect each, so "the blue spotted one heals" holds until the run ends.
 ## Effects: [name, kind ("good", "side" or "bad"), fx]. Bad poison is a share of your
@@ -89,8 +89,6 @@ const SHROOM_LOOKS := [
 ]
 ## Share of a level's Progress every mushroom gives, whatever its effect.
 const SHROOM_PROGRESS := 0.1
-## Seconds you stand on a mushroom to eat it: longer than walking across one takes.
-const SHROOM_CHEW := 0.8
 
 
 ## How likely you are to name a mushroom on sight at this Senses (the identify stat):

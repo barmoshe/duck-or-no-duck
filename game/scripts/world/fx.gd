@@ -7,7 +7,7 @@ var bits: Array = []  # {p, v, life, max, c, s, g}
 var rings: Array = []  # {p, r0, r1, t, dur, c}
 var cones: Array = []  # {p, dir, len, arc, t, dur, c}
 var texts: Array = []  # {p, s, t, dur, c, big}
-var tags: Array = []  # {p, s, c, bar} labels that stay put, refilled every frame (mushroom names); bar 0..1 draws a chew bar under it
+var tags: Array = []  # {p, s, c, key} labels that stay put, refilled every frame (mushroom names, the E prompt); key draws a keycap before the text
 var marks: Array = []  # {p, r, t, dur, c} telegraph circles
 var stars: Array = []  # {p, t, dur, c} four-point twinkles (legendary and healing food)
 var slashes: Array = []  # {p, dir, r, t, dur, c, flip} crescent swipes
@@ -156,7 +156,8 @@ func _draw() -> void:
 	# labels never overlap: the first one listed wins its spot
 	var taken: Array[Rect2] = []
 	for tg in tags:
-		var tw := font.get_string_size(String(tg["s"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+		var key := String(tg.get("key", ""))
+		var tw := font.get_string_size(String(tg["s"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x + (11.0 if key != "" else 0.0)
 		var box := Rect2((tg["p"] as Vector2) - Vector2(tw * 0.5 + 2, 8), Vector2(tw + 4, 10))
 		var free := true
 		for r in taken:
@@ -165,12 +166,16 @@ func _draw() -> void:
 				break
 		if free:
 			taken.append(box)
-			_label((tg["p"] as Vector2).floor(), String(tg["s"]), tg["c"])
-			var fr := float(tg.get("bar", -1.0))
-			if fr >= 0.0:
-				var bp := (tg["p"] as Vector2).floor() + Vector2(-7, 3)
-				draw_rect(Rect2(bp - Vector2.ONE, Vector2(16, 4)), Pal.INK)
-				draw_rect(Rect2(bp, Vector2(roundf(14.0 * clampf(fr, 0.0, 1.0)), 2)), tg["c"])
+			var lp := (tg["p"] as Vector2).floor()
+			if key != "":
+				# a little keycap, then the action: "[E] EAT"
+				var kp := (lp + Vector2(-floorf(tw * 0.5), -7)).floor()
+				draw_rect(Rect2(kp, Vector2(9, 9)), Pal.INK)
+				draw_rect(Rect2(kp + Vector2(1, 1), Vector2(7, 7)), Ui.PARCHMENT)
+				draw_rect(Rect2(kp + Vector2(1, 7), Vector2(7, 1)), Ui.WOOD)
+				draw_string(font, kp + Vector2(2, 7), key, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Pal.INK)
+				lp.x += 6.0
+			_label(lp, String(tg["s"]), tg["c"])
 	for tx in texts:
 		var u := float(tx["t"]) / float(tx["dur"])
 		var p := ((tx["p"] as Vector2) + Vector2(0, -12.0 * u)).floor()

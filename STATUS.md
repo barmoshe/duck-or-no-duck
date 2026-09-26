@@ -25,8 +25,9 @@ v0.3 "reinvent" build, playable end to end. Headless tests, a balance report and
   - Animals take single bites and can finish a piece.
   - **Cheek Pouch** stores food from twice your reach (capacity 2/4/6, HUD slots) and eats it, one piece at a time, when nothing is in reach; **Saliva** is Feeding Speed +25%.
   - **Food Sense** (v7.1, after Crab's Forager): +50% healing-food chance per level. **Hump** (v7.1): a sparkling bite at full health adds 1 Max HP for good.
+- **E, the use button (v7.2, as in Crab):** when there is something to use, an "[E] EAT" or "[E] <SPOT NAME>" prompt floats over it and an E button (keycap icon, labeled EAT or LOOK) shows up above DASH/ULTIMATE; on a keyboard it's the E key. It eats the mushroom at your feet or opens the ? spot you're at. ? spots no longer open just because you walk into them.
 - **Mushrooms (v7.2, as in Crab):**
-  - You eat one on purpose, with no button: stop on it for 0.8 s (a bar under its name fills over your head) and you eat it. Walking straight across one (about 0.5 s in reach) leaves it.
+  - You eat one on purpose with **E**, Crab's use button: walking over a mushroom does nothing.
   - 10 looks (cap color + shape) and 14 effects. At the start of each run every look is dealt one effect and keeps it all run. Once you eat a look, its name shows over every mushroom of that look (yellow good, blue mixed, salmon bad).
   - Senses (the identify stat, More Eyes +1 per level) can name a mushroom on sight the first time you come near: blind at 0, about 25% at 1, always right at 2.5.
   - Every mushroom gives 10% of a level's Progress (More Eyes +50%), then its effect.

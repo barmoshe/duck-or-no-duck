@@ -584,6 +584,20 @@ const ALL := {
 		"..kkkkkkkk...",
 		".............",
 	],
+	"key_e": [
+		".............",
+		".kkkkkkkkkk..",
+		".kwwwwwwwwk..",
+		".kwkkkkkkwk..",
+		".kwkkwwwwwk..",
+		".kwkkkkkwwk..",
+		".kwkkwwwwwk..",
+		".kwkkkkkkwk..",
+		".kwwwwwwwwk..",
+		".kssssssssk..",
+		".kkkkkkkkkk..",
+		".............",
+	],
 }
 
 static var _cache := {}
