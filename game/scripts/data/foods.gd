@@ -37,8 +37,9 @@ const FRUIT_XP := 2.5
 const BITES := 4
 const BITE_TIME := 0.55
 const SHARES := BITES + 1
-## the piece's value is its Progress for all four bites
-const VALUE := 1.0
+## the piece's value is its Progress for all four bites; 1.3 since v7.2 makes up for
+## eating one piece at a time (bots then reach the first boss at the old level)
+const VALUE := 1.3
 const FISH_POOL_XP := 3.0
 
 
