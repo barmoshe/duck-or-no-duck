@@ -8,4 +8,5 @@
 - Crab reference (wiki icons + evolution catalog + mechanics): research/crab-ref/. Reference only, never shipped.
 - sim/ and data/ never touch nodes; World emits signals, main.gd opens screens.
 - Tools: tools/check.sh (parse), tools/test.sh (logic + bot runs), tools/shot.sh (Xvfb screenshots), tools/build_web.sh, tools/webtest.sh, tools/publish.sh (stages public/ for Vercel).
+- Sound = game/scripts/autoload/sfx_synth.gd (SfxSynth: every recipe + LEVEL/PRIORITY/VARIANTS mix tables); Sfx plays it. Review with tests/sfx_board.gd (renders WAVs + a punch/level table) before shipping a sound change.
 - Review art with tests/puddle_board.gd, tests/darwin_board.gd (parts) and tests/animal_board.gd (animals | bosses) before shipping it.
