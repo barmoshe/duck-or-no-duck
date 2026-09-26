@@ -1,5 +1,5 @@
 extends SceneTree
-## Style board for the living-clay creatures: Puddle's evolution line, animals and a boss,
+## Style board for the creatures (Puddle in Darwin style, animals in living clay): Puddle's evolution line, animals and a boss,
 ## each as idle + walk + bite, at 4x.   godot -s res://tests/sculpt_board.gd -- out.png [set]
 func _init() -> void:
 	var args := OS.get_cmdline_user_args()
@@ -34,8 +34,7 @@ func _init() -> void:
 	var imgs: Array = []
 	var t0 := Time.get_ticks_usec()
 	for lk in looks:
-		var g: Dictionary = Anatomy.genome(lk)
-		var fr := Sculptor.frames(g)
+		var fr := Anatomy.frames(lk)
 		imgs.append([(fr["idle"][0] as Texture2D).get_image(), (fr["walk"][2] as Texture2D).get_image(), (fr["bite"][0] as Texture2D).get_image()])
 	print("rendered %d genomes in %.1f ms" % [looks.size(), (Time.get_ticks_usec() - t0) / 1000.0])
 	var cw := 0

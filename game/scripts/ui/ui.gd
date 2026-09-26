@@ -205,7 +205,7 @@ static var _used := {}
 ## A creature fitted into a box: the largest integer scale where its body fits, centered
 ## on the body (not the padded canvas), feet toward the bottom.
 static func creature_fit(ci: CanvasItem, look: Dictionary, box: Rect2, frame: int = 0) -> void:
-	var tex: Texture2D = Sculptor.single(Anatomy.genome(look))["tex"]
+	var tex: Texture2D = Anatomy.single(look)["tex"]
 	var tid := tex.get_instance_id()
 	if not _used.has(tid):
 		if _used.size() > 128:

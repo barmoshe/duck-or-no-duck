@@ -120,3 +120,13 @@ Our version:
    - Every species is pre-baked while the menus are up.
 
 The old ASCII rig system (`rig.gd`, `sheets/bodies.gd`, `sheets/parts.gd`, `tools/art/author.py`) is retired.
+
+## v5 Darwin-style Puddle (2026-09-26)
+
+Bar rejected the sculpted v4 look ("looks terrible") and sent a screenshot of Crab's Darwin cosmetics. Puddle is now hand-drawn to match it:
+- **The body:** flat colors, with one light aqua face zone over a blue gumdrop body, a navy mouth line, 1 px dark dots for eyes, and a 1 px ink outline. No shading, and no SDF.
+- **Parts:** a library of small ASCII sprites (`tools/art/darwin_parts.py` → `darwin/parts.gd`). Each part is pinned to a named body anchor (top, face, back, tail, feet, arm, arm_b) and drawn behind or in front of the body.
+- **Stacking:** extra eyes add dots, up to 6. Patterns sprinkle darker pixels, and Convergent recolors the body as a mallard.
+- **Animation:** poses are row squash/stretch, a lift, a 4-step leg cycle, wing flap, blink and an open mouth. Every pose shares one 46×44 canvas.
+- **Evolving:** a pick flickers old/new, like Crab's mutation pop.
+- **Scope:** the v4 Genome/Sculptor still draws animals and bosses.

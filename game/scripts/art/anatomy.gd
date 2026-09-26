@@ -1,8 +1,8 @@
 class_name Anatomy
 extends RefCounted
-## The creature art facade. Every creature is a Genome drawn by the Sculptor ("living
-## clay"): the player's look carries its genome in look["gen"] (built by Run from its
-## evolutions); animals' looks are turned into genomes here.
+## The creature art facade. Puddle (a look with "darwin") is hand-drawn flat pixel art
+## composed from parts (DarwinArt, Everything-is-Crab's Darwin style); animals are Genomes
+## drawn by the Sculptor ("living clay"), turned into genomes here.
 ## frames(look) -> {"idle": [4 tex], "walk": [6 tex], "bite": [1 tex], "size": Vector2i, "foot": Vector2}
 
 
@@ -14,16 +14,33 @@ static func genome(look: Dictionary) -> Dictionary:
 	return Genome.from_look(look)
 
 
+static func is_darwin(look: Dictionary) -> bool:
+	return bool(look.get("darwin", false))
+
+
 static func frames(look: Dictionary) -> Dictionary:
+	if is_darwin(look):
+		return DarwinArt.frames(look)
 	return Sculptor.frames(genome(look))
 
 
+## One still pose for UI: {"tex", "size", "foot"}.
+static func single(look: Dictionary) -> Dictionary:
+	if is_darwin(look):
+		var fr := DarwinArt.frames(look)
+		return {"tex": fr["idle"][0], "size": fr["size"], "foot": fr["foot"]}
+	return Sculptor.single(genome(look))
+
+
 static func key_of(look: Dictionary) -> String:
+	if is_darwin(look):
+		return "d" + JSON.stringify(DarwinArt.spec_of(look)).md5_text()
 	return Genome.key(genome(look))
 
 
 static func clear_cache() -> void:
 	Sculptor.clear_cache()
+	DarwinArt.clear_cache()
 
 
 ## One frame as an Image. anim: idle | move | attack.

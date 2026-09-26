@@ -206,14 +206,24 @@ func tick(dt: float) -> void:
 	_animate()
 
 
-## Evolving: show a few in-between bodies (old genome -> new) before the new one.
+## Evolving: show a few in-between bodies before the new one (a genome tween for
+## sculpted bodies; Darwin-style art pops old/new like a mutation flicker).
 var morph_frames: Array = []
 var morph_t := 0.0
 const MORPH_TIME := 0.6
 
 
-func play_morph(old_g: Dictionary, new_g: Dictionary) -> void:
+func play_morph(old_look: Dictionary, new_look: Dictionary) -> void:
 	morph_frames.clear()
+	if Anatomy.is_darwin(new_look):
+		var a := Anatomy.frames(old_look)
+		var b := Anatomy.frames(new_look)
+		for fr in [a, b, a, b, a, b]:
+			morph_frames.append([fr["idle"][0], fr["size"], fr["foot"]])
+		morph_t = MORPH_TIME
+		return
+	var old_g := Anatomy.genome(old_look)
+	var new_g := Anatomy.genome(new_look)
 	for t in [0.25, 0.5, 0.75]:
 		var fr := Sculptor.single(Genome.lerp_g(old_g, new_g, t))
 		morph_frames.append([fr["tex"], fr["size"], fr["foot"]])

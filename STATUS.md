@@ -21,6 +21,10 @@ v0.3 "reinvent" build, playable end to end. Headless tests, a balance report and
   - levels 1-5, with rarity rising by level
   - an evolution tree: unlocks and bans
   - Boss Fruit gives Branching Evolutions (Wings, Tentacles, Legs, Arms, Shell, Slithery, Ruminant, Alpha, Pollinator, Bill), which set the body plan and open families of evolutions
+- **Character art (v5, on the branch, not deployed yet):**
+  - Puddle is redrawn by hand in the flat style of Crab's Darwin: a blue gumdrop body with an aqua face and a 1 px ink outline.
+  - Each evolution adds a hand-drawn part (horns, ram horns, antlers, goggles/stalks, antennae, shell, wings, tails, legs, claws, bill and so on) at a fixed anchor, with idle, walk and bite poses. Convergent recolors Puddle as a mallard.
+  - Animals still use v4 "living clay"; restyling them is awaiting Bar's call.
 - **Evolution screen, Crab-style for phones:**
   - affinity panel with emblems and a live preview
   - rarity-framed cards with portraits of the evolution on your own creature, now -> next numbers, unlock and ban chips
@@ -49,6 +53,8 @@ v0.3 "reinvent" build, playable end to end. Headless tests, a balance report and
   - real per-evolution portrait art for the most common cards
   - more animal rigs
   - a save of the run in progress
+
+- v5: Bar reviews the Darwin-style Puddle. Then decide whether animals get the same flat style, and deploy (the v4 deploy was declined).
 
 ## Blockers
 - The container blocks vercel.com and api.vercel.com, so deploys go through the Vercel MCP `create_deployment` with the git source (Vercel builds from GitHub).

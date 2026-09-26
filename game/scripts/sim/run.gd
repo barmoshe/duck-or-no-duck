@@ -377,6 +377,8 @@ func _look() -> void:
 		look["body"] = "mochi"
 	# the living-clay body the Sculptor draws (continuous: every pick shows)
 	look["gen"] = Genome.of_run(self)
+	# Puddle itself is drawn by hand in Darwin's style (DarwinArt), from its parts
+	look["darwin"] = true
 
 
 ## Walking speed in px/s.

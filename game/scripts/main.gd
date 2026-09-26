@@ -409,13 +409,13 @@ func _show_hand(title: String, sub: String, mutagen: bool) -> void:
 
 
 func _on_picked(id: String) -> void:
-	var old_g: Dictionary = (run.look.get("gen", {}) as Dictionary).duplicate()
+	var old_look: Dictionary = run.look.duplicate()
 	var replaced := run.take(id)
 	Game.codex_evos[id] = true
 	world.sync_player()
 	# the new part grows out: a few in-between bodies before the new one
-	if not old_g.is_empty() and run.look.has("gen"):
-		world.player.play_morph(old_g, run.look["gen"])
+	if not old_look.is_empty():
+		world.player.play_morph(old_look, run.look)
 	world.fx.burst(world.player.position + Vector2(0, -world.player.r), Pal.c("gold", 4), 20, 70.0, 1.0, 0.6)
 	var d := Evolutions.get_def(id)
 	if String(d.get("type", "")) == "branch":

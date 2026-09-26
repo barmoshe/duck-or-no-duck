@@ -14,6 +14,8 @@ const E := {
 	# foliage extras for the fluffy tree crowns
 	"fern": "4fa845", "sprout": "95d65e", "ochre": "e0913a", "mauve": "8e4a5e", "dusty": "c46f7f",
 	"blush": "e39aa4", "petal": "f7cbd0", "stone": "9aa3b5",
+	# Puddle (after Everything is Crab's Darwin): blue body, aqua face, navy collar
+	"puddle": "14a3e4", "puddle_d": "0b78c0", "aqua": "62dfd5", "aqua_d": "39b9c2", "eye": "123a45",
 }
 
 const RAMPS := {

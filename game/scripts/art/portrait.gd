@@ -69,7 +69,21 @@ static func _icon(img: Image, id: String, t: String) -> void:
 	img.blend_rect(ic, Rect2i(Vector2i.ZERO, ic.get_size()), at)
 
 
+## Where each zone sits on Darwin-style Puddle (DarwinArt body anchors).
+const DARWIN_ZONE := {"face": "face", "crown": "top", "back": "back", "tail": "tail", "legs": "feet", "arms": "arm"}
+
+
 static func _close_up(img: Image, look: Dictionary, zone: String) -> void:
+	if Anatomy.is_darwin(look):
+		var dimg := (DarwinArt.frames(look)["idle"][0] as Texture2D).get_image()
+		var used := dimg.get_used_rect()
+		var dc := Vector2(used.get_center())
+		var dsc := 2
+		if DARWIN_ZONE.has(zone):
+			dc = Vector2(DarwinArt.BODY_AT + (DarwinArt.BODY["anchors"][DARWIN_ZONE[zone]] as Vector2i))
+			dc = dc.lerp(Vector2(used.get_center()), 0.35)
+		_blit(img, dimg, dc, dsc)
+		return
 	var g := Anatomy.genome(look)
 	var fr := Sculptor.single(g)
 	var cr := (fr["tex"] as Texture2D).get_image()
@@ -101,8 +115,12 @@ static func _close_up(img: Image, look: Dictionary, zone: String) -> void:
 			c = Vector2(used.get_center()) - origin
 			if used.size.x * 2 > W or used.size.y * 2 > H:
 				sc = 1
+	_blit(img, cr, c + origin, sc)
+
+
+## Crops a window of cr around cp, scales it by sc and centers it on img with a shadow.
+static func _blit(img: Image, cr: Image, cp: Vector2, sc: int) -> void:
 	var win := Vector2i(W / sc, H / sc)
-	var cp := c + origin
 	var x0 := clampi(int(cp.x - win.x * 0.5), 0, maxi(0, cr.get_width() - win.x))
 	var y0 := clampi(int(cp.y - win.y * 0.5), 0, maxi(0, cr.get_height() - win.y))
 	var reg := cr.get_region(Rect2i(x0, y0, mini(win.x, cr.get_width()), mini(win.y, cr.get_height())))
