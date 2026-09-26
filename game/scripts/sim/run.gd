@@ -321,7 +321,13 @@ func dominant_affinity() -> String:
 func _look() -> void:
 	look = BASE_LOOK.duplicate()
 	var forced := ""
+	# branching evolutions set the body plan: their parts are applied last so they stay
+	var seq: Array = []
 	for id in order:
+		if not id in branches:
+			seq.append(id)
+	seq.append_array(branches)
+	for id in seq:
 		var d := Evolutions.get_def(id)
 		var lk: Dictionary = d.get("look", {})
 		for k in lk:

@@ -106,6 +106,34 @@ const ALL := {
 		["...ooo", "..o334", "oo3333", "..o334", "...ooo"],
 		["...oo.", "..o33o", "oo33..", "..o33o", "...oo."]]},
 	"arm:tentacles": {"pivot": Vector2i(0, 0), "frames": [["c.", "cc", ".c", "c.", "cc"], [".c", "cc", "c.", ".c", "cc"]]},
+	# ------------------------------------------------------------------ branch body plans (bigger, readable parts)
+	"back:wings_big": {"pivot": Vector2i(12, 9), "frames": [
+		["..........o....", ".........o4o...", "......o.o44o...", ".....o4o443o...", "..o.o44o433o...", ".o4o443o333o.oo", "o44o433o3333o4o", "o43o333o33333o.", ".o3o332o2222o..", "..o2o22o222o...", "...oooooooo...."],
+		["...............", "...............", "...............", "......ooooooo..", "...ooo4444444o.", ".oo44o4333333oo", "o4443o33333333o", ".o433o3332222o.", "..o33o3o2o2o2o.", "...oo.o.o.o.o..", "..............."]]},
+	"arm:tentacles_big": {"pivot": Vector2i(4, 0), "frames": [
+		["vpPPvvpPPvvpPPv", "vpPwvvpPwvvpPwv", ".vpPPvpPPvpPPv.", ".vpwvpwvv.vpwv.", "vpPvvpPv...vpPv", "vpwvvpwv...vpwv", "vPv..vvPv...vPv", "vPv....vPv..vPv", "vPv....vPv.vPv.", ".v......v...v..", "..............."],
+		["vpPPvvpPPvvpPPv", "vpPwvvpPwvvpPwv", "vpPPvpPPv..vpPP", "pwvvvpwv...vpwv", "pPv..vpPv..vpPv", "pwv...vpwvvpwv.", "vvPv...vPvvPv..", ".vPv...vPvvPv..", "..vPv.vPv.vPv..", "...v...v...v...", "..............."]]},
+	"arm:claws_big": {"pivot": Vector2i(1, 5), "frames": [
+		["....oooo...", "...o4443o..", "..o433oo...", ".o4333o....", "o43333o.oo.", "o33332o3o..", ".o2222223o.", "..oooooooo."],
+		["...........", "...ooooo...", "..o44443o..", ".o433333oo.", "o433333333o", "o333322222o", ".o2222ooo..", "..oooo....."]]},
+	"back:shell_big": {"pivot": Vector2i(6, 6), "ramp": "coral", "frames": [
+		["......ooo......", "...ooo444ooo...", "..o444444333o..", ".o44444233333o.", ".o44233233233o.", "o4333232323333o", "o1323333333231o", ".o33323232333o.", ".o13333333331o.", "..o111333111o..", "...ooo111ooo..."]]},
+	"tail:serpent": {"pivot": Vector2i(12, 3), "frames": [
+		[".......oooo...", "o.....o3333oo.", "4ooooo3222233o", "o333332oooo223", ".ooo22o....oo2", "....oo.......o"],
+		["....ooooo.....", "...o33333o....", "ooo3222223oooo", "433oooooo23333", "ooo......o2222", "..........oooo"]]},
+	"back:wings_bee": {"pivot": Vector2i(8, 5), "frames": [
+		[".ssTwss....", "swTwwTwsss.", "wTwwTwwTwws", "swwTwwTwwTw", ".sswwswwTws", "...ss.ssss.", "..........."],
+		["...........", "..sss......", "sswwTsssss.", "TwwTwwTwwTs", "wwTwwTwwTww", "sswwTswTwws", "..sss.ssss."]]},
+	"limb:legs_tall": {"pivot": Vector2i(0, 0), "frames": [
+		["23", "23", "2.", ".2", ".2", ".2", ".oo"],
+		["23", "23", ".2", ".2", "2.", "2.", "oo."],
+		["23", "23", "2.", ".2", ".2", ".2", ".oo"],
+		["23", "23", "2.", "2.", ".2", ".2", "..oo"]]},
+	"crown:horns_ram": {"pivot": Vector2i(5, 4), "frames": [
+		[".nnn...nnn.", "nNNNn.nNNNn", "nNnNn.nNnNn", ".nnNn.nNnn.", "...nn.nn..."]]},
+	"crown:mane": {"pivot": Vector2i(4, 4), "frames": [
+		["..a...a...", ".ab..ab.a.", "abbaabbab.", "bbbbbbbbb.", "cbcbcbcbc."],
+		[".a...a....", "ab..ab.a..", "abbaabbab.", "bbbbbbbbb.", "cbcbcbcbc."]]},
 	# ------------------------------------------------------------------ hides (pivot = center, masked to body)
 	"hide:none": {"pivot": Vector2i(0, 0), "frames": [["."]]},
 	"hide:spots": {"pivot": Vector2i(6, 3), "frames": [["..1.....1...", "........11..", ".11..1......", "11.......1..", ".....11.....", "..1.......1."]]},

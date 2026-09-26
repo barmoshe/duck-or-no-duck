@@ -394,6 +394,15 @@ func _on_picked(id: String) -> void:
 	world.sync_player()
 	world.fx.burst(world.player.position + Vector2(0, -world.player.r), Pal.c("gold", 4), 20, 70.0, 1.0, 0.6)
 	var d := Evolutions.get_def(id)
+	if String(d.get("type", "")) == "branch":
+		# the body plan branches: a white flash, a burst in your colors, a banner
+		var pl := world.player
+		pl.hit_flash(Color.WHITE)
+		world.fx.ring(pl.position + Vector2(0, -pl.r), 4.0, 70.0, 0.7, Color.WHITE)
+		world.fx.burst(pl.position + Vector2(0, -pl.r), Pal.c(String(run.look.get("ramp", "slime")), 3), 40, 100.0, 2.0, 0.9)
+		world.hitstop = 0.25
+		Sfx.play("stage")
+		hud.show_banner("BRANCHED: %s" % String(d["name"]).to_upper(), "Your body plan changes. New evolutions open up.")
 	if d.get("duck_part", false):
 		var n := run.duck_parts()
 		hud.show_banner("DUCK!" if n < 8 else "TOTAL ANATIFICATION", "%d of 8 duck parts" % n)
