@@ -18,7 +18,7 @@ const BASE := {
 	"swim": 0.0, "temper": 0.0, "all": 0.0, "vision": 0.0, "identify": 0.0,
 	"meat_xp": 0.0, "fish_xp": 0.0, "fruit_xp": 0.0, "fruit_heal": 0.0, "scav_xp": 0.0,
 	"vegan": 0.0, "omni": 0.0, "pollen": 0.0, "feed": 100.0, "ruminant": 0.0, "shroom_xp": 0.0,
-	"lifesteal": 0.0, "terrain_res": 0.0,
+	"lifesteal": 0.0, "terrain_res": 0.0, "forage": 0.0, "hump": 0.0,
 }
 const BASE_LOOK := {
 	"body": "slime", "ramp": "slime", "accent": "gold", "size": 8, "eyes": "cute", "mouth": "none",

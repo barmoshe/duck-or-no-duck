@@ -77,6 +77,11 @@ func hatch(id: String) -> void:
 	boss.target = w.player
 	boss.state = "chase"
 	boss_id = id
+	# the first boss is the lesson: it hits softer and falls sooner than the ones after
+	if w.run.boss_order.size() > 0 and id == String(w.run.boss_order[0]) and id != "great_mallard":
+		boss.dmg *= 0.75
+		boss.max_hp *= 0.85
+		boss.hp = boss.max_hp
 	timer = GIVE_UP * (0.8 if w.run.pressure >= 4 else 1.0)
 	fight_t = 0.0
 	# clear small fry out of the arena

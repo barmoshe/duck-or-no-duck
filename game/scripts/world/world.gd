@@ -616,7 +616,7 @@ func _luck() -> float:
 func _roll_food(p: Vector2, type: String, xp: float, source: String, scav: bool = false, z: float = 0.0) -> Dictionary:
 	var rar := Foods.roll(rng, source, _luck())
 	var hp_frac := player.hp / maxf(1.0, player.max_hp) if valid(player) else 1.0
-	var heal := rng.randf() < Foods.heal_chance(rar, hp_frac)
+	var heal := rng.randf() < Foods.heal_chance(rar, hp_frac) * (1.0 + float(run.stats["forage"]) / 100.0)
 	return spawn_food(p, type, xp, rar, scav, z, heal)
 
 
@@ -954,6 +954,12 @@ func _bite(f: Dictionary) -> Dictionary:
 	f["bites"] = left - 1
 	_gain_xp(xp)
 	if hp > 0.0:
+		# Hump: sparkling food eaten at full health grows your Max HP for good
+		var grow := float(run.stats["hump"])
+		if grow > 0.0 and player.hp >= player.max_hp - 0.01:
+			run.bonus("max_hp", grow)
+			sync_player()
+			fx.text(player.position + Vector2(0, -player.r * 2.0 - 16), "+%d MAX HP" % roundi(grow), Pal.e("salmon"))
 		player.hp = minf(player.max_hp, player.hp + hp)
 	if left <= 1:
 		var type := String(f["type"])

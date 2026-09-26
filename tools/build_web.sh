@@ -7,6 +7,7 @@ GAME="$HERE/../game"
 OUT="$HERE/../build/web"
 VER="4.7.2"
 TPL_DIR="$HOME/.local/share/godot/export_templates/${VER}.stable"
+[ "$(uname)" = "Darwin" ] && TPL_DIR="$HOME/Library/Application Support/Godot/export_templates/${VER}.stable"
 CACHE="${DUCK_BUILD_CACHE:-$HOME/.cache/duck-build}"
 log() { echo "[build_web] $*"; }
 
@@ -30,7 +31,7 @@ cp "$GAME/assets/icon/icon_180.png" "$OUT/index.180x180.png"
 cp "$GAME/assets/icon/icon_512.png" "$OUT/index.512x512.png"
 STAMP="$(git -C "$HERE" rev-parse --short HEAD 2>/dev/null || echo dev)"
 git -C "$HERE" diff --quiet HEAD -- "$GAME" 2>/dev/null || STAMP="$STAMP+"
-sed -i "s|__DUCK_BUILD__|$STAMP|" "$OUT/index.html"
+sed -i.bak "s|__DUCK_BUILD__|$STAMP|" "$OUT/index.html" && rm -f "$OUT/index.html.bak"
 grep -q "duckBuild = '$STAMP'" "$OUT/index.html" || { log "build stamp missing from index.html"; exit 1; }
 log "build stamp: $STAMP"
 ls -la "$OUT" | awk 'NR>1 {printf "  %10s  %s\n", $5, $9}'

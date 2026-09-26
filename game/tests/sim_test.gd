@@ -231,6 +231,25 @@ func _food() -> void:
 	w._bite(hf)
 	check(w.player.hp > 2.0 and int(hf["bites"]) == Foods.BITES - 1, "a bite of sparkling food heals")
 	check(not w.spawn_food(w.player.position, "fruit", 1.0, 3, false, 0.0, true)["heal"], "legendary food never heals")
+	# Hump: a sparkling bite at full health grows Max HP for good
+	main.run.stats["hump"] = 1.0
+	w.player.hp = w.player.max_hp
+	var mhp: float = w.player.max_hp
+	w._bite(w.spawn_food(w.player.position, "fruit", 1.0, 0, false, 0.0, true))
+	check(w.player.max_hp > mhp and float(main.run._bonus.get("max_hp", 0.0)) >= 1.0, "Hump: a sparkling bite at full health raises Max HP")
+	main.run._bonus.erase("max_hp")
+	main.run.recompute()
+	w.sync_player()
+	# Food Sense: more food sparkles
+	var plain := 0
+	var sensed := 0
+	for i in 400:
+		plain += 1 if w._roll_food(w.player.position + Vector2(300, 0), "fruit", 1.0, "plant")["heal"] else 0
+	main.run.stats["forage"] = 150.0
+	for i in 400:
+		sensed += 1 if w._roll_food(w.player.position + Vector2(300, 0), "fruit", 1.0, "plant")["heal"] else 0
+	main.run.stats["forage"] = 0.0
+	check(sensed > plain * 1.6, "Food Sense makes more food sparkle (%d vs %d)" % [sensed, plain])
 	# eating (Crab): walk over food and bite everything in reach at once, four bites a piece
 	main.run.stats["vegan"] = 0.0
 	for f in w.foods:

@@ -104,9 +104,13 @@ const ALL := {
 	"herbivore": {"name": "Herbivore", "type": "passive", "aff": "prey", "rarity": 0, "max": 5, "unlocks": {2: ["vegan"]},
 		"stats": {"fruit_xp": 40.0, "fruit_heal": 2.0}, "desc": "Fruit gives +40% XP and heals 2. Bump trees to shake fruit loose."},
 	"cheek_pouch": {"name": "Cheek Pouch", "type": "passive", "aff": "prey", "rarity": 0, "max": 3, "look": {"cheeks": "pouch"},
-		"stats": {"pouch": 2.0}, "desc": "Store nearby food inside your cheeks. Stored food is eaten at the same rate, even on the move."},
+		"stats": {"pouch": 2.0}, "desc": "Store food from further away inside your cheeks. Stored food is bitten along with the rest, even on the move."},
 	"saliva": {"name": "Saliva", "type": "passive", "aff": "prey", "rarity": 0, "max": 5,
-		"stats": {"feed": 25.0}, "desc": "Chew faster. Feeding Speed +25%."},
+		"stats": {"feed": 25.0}, "desc": "Bite faster. Feeding Speed +25%."},
+	"food_sense": {"name": "Food Sense", "type": "passive", "aff": "prey", "rarity": 1, "max": 3,
+		"stats": {"forage": 50.0}, "desc": "More food sparkles: +50% chance a piece heals you with every bite."},
+	"hump": {"name": "Hump", "type": "passive", "aff": "imposing", "rarity": 2, "max": 3,
+		"stats": {"hump": 1.0}, "desc": "A bite of sparkling food at full health raises your Max HP by 1 for good."},
 	"scavenger": {"name": "Carrion", "type": "passive", "aff": "prey", "rarity": 0, "max": 5, "look": {"mouth": "beak"}, "excludes": ["vegan"],
 		"stats": {"scav_xp": 50.0, "feed": 15.0}, "desc": "Food from animals not killed by you grants +50% Progress. Feeding Speed +15%."},
 	"vegan": {"name": "Vegan", "type": "passive", "aff": "prey", "rarity": 2, "max": 1, "locked": true,
@@ -282,7 +286,8 @@ const STAT_LABEL := {
 	"vision": ["Night Vision", ""], "meat_xp": ["Meat Progress", "%"], "fish_xp": ["Fish Progress", "%"],
 	"fruit_xp": ["Fruit Progress", "%"], "fruit_heal": ["Fruit Heal", ""], "scav_xp": ["Carrion Progress", "%"],
 	"feed": ["Feeding Speed", "%"], "shroom_xp": ["Mushroom Progress", "%"], "cdr": ["Cooldowns", "%"], "area": ["Area", "%"],
-	"lifesteal": ["Lifesteal", "%"], "terrain_res": ["Terrain Penalty", "-%"],
+	"lifesteal": ["Lifesteal", "%"], "terrain_res": ["Terrain Penalty", "-%"], "forage": ["Healing Food", "%"],
+	"hump": ["Max HP per Full Bite", ""],
 }
 
 
