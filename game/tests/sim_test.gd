@@ -62,6 +62,31 @@ func _logic() -> void:
 		check(not Evolutions.get_def(id).get("starter", false) or r.has(id), "no unowned starters offered")
 	var fruit := Offers.roll(r, rng, "boss")
 	check(fruit.size() == 3 and Evolutions.get_def(fruit[0])["type"] == "branch", "Boss Fruit offers Branching Evolutions")
+	# living clay: every evolution visibly changes the body, and caps keep it readable
+	var base_run := Run.new("pioneer", 0, rng)
+	var base_key := Genome.key(base_run.look["gen"])
+	var same: Array = []
+	for id in Evolutions.ALL:
+		if Evolutions.get_def(id).get("starter", false):
+			continue
+		if Genome.key(base_run.preview(id)["gen"]) == base_key:
+			same.append(id)
+	check(same.is_empty(), "every evolution changes Puddle's body (unchanged: %s)" % [same])
+	var big := Run.new("pioneer", 0, rng)
+	for i in 3:
+		for id in ["more_eyes", "mutant_luck", "long_legs", "horns", "swan_neck", "heron_stilts", "colossal", "big_brain", "branch_tentacles", "tentacle_lash"]:
+			big.take(id)
+	var bg: Dictionary = big.look["gen"]
+	check(int(bg["eye_n"]) <= 6 and int(bg["crown_n"]) <= 2 and int(bg["arm_n"]) <= 4 and float(bg["leg_len"]) <= float(bg["size"]) * 1.4 + 0.01, "readability caps hold (eyes %d, horns %d, arms %d)" % [bg["eye_n"], bg["crown_n"], bg["arm_n"]])
+	var fr_big := Sculptor.frames(bg)
+	check((fr_big["walk"] as Array).size() == Sculptor.WALK_N and (fr_big["idle"] as Array).size() == Sculptor.IDLE_N, "a creature has idle, walk and bite frames")
+	var mid := Genome.lerp_g(base_run.look["gen"], bg, 0.5)
+	check(float(mid["len"]) > float(base_run.look["gen"]["len"]) and float(mid["len"]) < float(bg["len"]), "genomes blend for the evolve animation")
+	var t_r := Time.get_ticks_usec()
+	Sculptor.clear_cache()
+	Sculptor.frames(Species.look_of("fox") if false else Genome.of_species("fox"))
+	var ms := (Time.get_ticks_usec() - t_r) / 1000.0
+	check(ms < 120.0, "rendering a creature's full frame set takes %.0f ms" % ms)
 	# the evolution tree: unlocks, bans, levels, branches
 	var tr := Run.new("pioneer", 0, rng)
 	check(not Offers.eligible(tr, "glide", "level"), "Glide starts locked")

@@ -167,6 +167,7 @@ func hit_flash(col: Color = Color.WHITE) -> void:
 
 func tick(dt: float) -> void:
 	anim_t += dt
+	morph_t = maxf(0.0, morph_t - dt)
 	bite_t = maxf(0.0, bite_t - dt)
 	stun = maxf(0.0, stun - dt)
 	slow_t = maxf(0.0, slow_t - dt)
@@ -205,8 +206,31 @@ func tick(dt: float) -> void:
 	_animate()
 
 
+## Evolving: show a few in-between bodies (old genome -> new) before the new one.
+var morph_frames: Array = []
+var morph_t := 0.0
+const MORPH_TIME := 0.6
+
+
+func play_morph(old_g: Dictionary, new_g: Dictionary) -> void:
+	morph_frames.clear()
+	for t in [0.25, 0.5, 0.75]:
+		var fr := Sculptor.single(Genome.lerp_g(old_g, new_g, t))
+		morph_frames.append([fr["tex"], fr["size"], fr["foot"]])
+	morph_t = MORPH_TIME
+
+
 func _animate() -> void:
 	if frames.is_empty():
+		return
+	if morph_t > 0.0 and not morph_frames.is_empty():
+		var k := clampi(int((1.0 - morph_t / MORPH_TIME) * morph_frames.size()), 0, morph_frames.size() - 1)
+		var mf: Array = morph_frames[k]
+		sprite.texture = mf[0]
+		var msz: Vector2i = mf[1]
+		var mfoot: Vector2 = mf[2]
+		sprite.flip_h = face < 0.0
+		sprite.offset = Vector2(-(msz.x - mfoot.x) if sprite.flip_h else -mfoot.x, -mfoot.y).round()
 		return
 	if absf(vel.x) > 4.0 and stun <= 0.0:
 		face = signf(vel.x)

@@ -23,6 +23,12 @@ var cur_source := "level"
 
 
 func _ready() -> void:
+	for id in Species.ALL:
+		if not Species.get_def(id).get("boss", false):
+			_bake.append(id)
+	for id in Species.ALL:
+		if Species.get_def(id).get("boss", false):
+			_bake.append(id)
 	_setup_input()
 	world = World.new()
 	world.process_mode = Node.PROCESS_MODE_PAUSABLE
@@ -169,7 +175,21 @@ func _setup_input() -> void:
 			InputMap.action_add_event(action, ev)
 
 
+## Creature art is rendered once per body and cached; bake every animal while the title
+## and menus are up (one per frame) so the first spawn of a species never stutters.
+var _bake: Array = []
+
+
+func _bake_step() -> void:
+	if _bake.is_empty():
+		return
+	if state == S.RUN and world.running:
+		return  # during play, bodies render on first spawn only
+	Anatomy.frames(Species.look_of(String(_bake.pop_front())))
+
+
 func _process(dt: float) -> void:
+	_bake_step()
 	var portrait := rotate_hint.active()
 	match state:
 		S.TITLE:
@@ -389,9 +409,13 @@ func _show_hand(title: String, sub: String, mutagen: bool) -> void:
 
 
 func _on_picked(id: String) -> void:
+	var old_g: Dictionary = (run.look.get("gen", {}) as Dictionary).duplicate()
 	var replaced := run.take(id)
 	Game.codex_evos[id] = true
 	world.sync_player()
+	# the new part grows out: a few in-between bodies before the new one
+	if not old_g.is_empty() and run.look.has("gen"):
+		world.player.play_morph(old_g, run.look["gen"])
 	world.fx.burst(world.player.position + Vector2(0, -world.player.r), Pal.c("gold", 4), 20, 70.0, 1.0, 0.6)
 	var d := Evolutions.get_def(id)
 	if String(d.get("type", "")) == "branch":

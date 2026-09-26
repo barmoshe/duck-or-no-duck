@@ -196,3 +196,26 @@ static func wood_button(ci: CanvasItem, r: Rect2, label: String, face: Color, do
 	ci.draw_rect(Rect2(rr.position + Vector2(3, 3), Vector2(rr.size.x - 6, 1)), f.lightened(0.3))
 	var fnt := bold() if size >= 16 else small()
 	text(ci, Vector2(rr.get_center().x, floorf(rr.get_center().y + size * 0.36)), label, TEXT if enabled else DIM, fnt, size, 1)
+
+
+
+static var _used := {}
+
+
+## A creature fitted into a box: the largest integer scale where its body fits, centered
+## on the body (not the padded canvas), feet toward the bottom.
+static func creature_fit(ci: CanvasItem, look: Dictionary, box: Rect2, frame: int = 0) -> void:
+	var tex: Texture2D = Sculptor.single(Anatomy.genome(look))["tex"]
+	var tid := tex.get_instance_id()
+	if not _used.has(tid):
+		if _used.size() > 128:
+			_used.clear()
+		_used[tid] = tex.get_image().get_used_rect()
+	var used: Rect2i = _used[tid]
+	if used.size.x <= 0:
+		return
+	var sc := maxi(1, mini(int(box.size.x / used.size.x), int(box.size.y / used.size.y)))
+	sc = mini(sc, 3)
+	var dst := Vector2(used.size) * sc
+	var at := (box.get_center() - dst * 0.5).floor()
+	ci.draw_texture_rect_region(tex, Rect2(at, dst), Rect2(used))

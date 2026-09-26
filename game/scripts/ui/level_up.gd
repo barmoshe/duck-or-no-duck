@@ -134,7 +134,7 @@ func _card(r0: Rect2, id: String, selected: bool, down: bool, branch: bool) -> v
 		draw_rect(br.grow(-1), col.lerp(Ui.PARCHMENT, 0.4))
 		draw_texture(Icons.tex("badge_" + bt), br.position + Vector2(2, 1))
 	# portrait
-	var pt := Portrait.tex(run.look, id)
+	var pt := Portrait.tex(run, id)
 	var pp := Vector2(floorf(body.get_center().x - Portrait.W * 0.5), body.position.y + 10)
 	draw_rect(Rect2(pp - Vector2(1, 1), Vector2(Portrait.W + 2, Portrait.H + 2)), col.darkened(0.2))
 	draw_texture(pt, pp)
@@ -234,18 +234,24 @@ func _affinities(r: Rect2) -> void:
 		return
 	draw_rect(pr, Color("c28569"))
 	draw_rect(pr.grow(-1), Color("ead4aa").darkened(0.08))
-	var look := run.look.duplicate()
+	var look := run.look
 	var label := "YOU"
 	if sel >= 0 and sel < hand.size():
-		var d := Evolutions.get_def(String(hand[sel]))
-		for k in d.get("look", {}):
-			if k == "shape":
-				look["body"] = {"duck": "duck", "tall": "bird"}.get(String(d["look"][k]), look["body"])
-			else:
-				look[Run.LOOK_KEY.get(k, k)] = d["look"][k]
+		look = _preview_look(String(hand[sel]))
 		label = "WITH IT"
-	Ui.creature(self, look, pr.get_center() + Vector2(0, 2), 2 if pr.size.y > 50 else 1, int(t * 2.0))
+	Ui.creature_fit(self, look, Rect2(pr.position + Vector2(3, 3), pr.size - Vector2(6, 14)), int(t * 2.0))
 	Ui.text(self, Vector2(pr.get_center().x, pr.end.y - 3), label, BOX_TEXT, Ui.small(), 8, 1, false)
+
+
+var _previews := {}
+
+
+## Your body after taking a card (cached while the screen is open).
+func _preview_look(id: String) -> Dictionary:
+	var k := id + "|" + str(run.owned.hash()) + "|" + str(run.level)
+	if not _previews.has(k):
+		_previews[k] = run.preview(id)
+	return _previews[k]
 
 
 func _side(r: Rect2) -> void:

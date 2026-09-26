@@ -105,7 +105,7 @@ func _title() -> void:
 	var cy := floorf((top + 60 + bot - 58) * 0.5) + 4
 	var sc := 3 if s.size.y > 250 else 2
 	draw_circle(Vector2(cx, cy + 6).floor(), 22.0 * sc / 2.0, Color(Pal.c("gold", 3), 0.14 + 0.05 * sin(t * 3.0)))
-	Ui.creature(self, _morph_look(), Vector2(cx, cy), sc, int(t * 2.0))
+	Ui.creature_fit(self, _morph_look(), Rect2(cx - 22.0 * sc, cy - 14.0 * sc, 44.0 * sc, 26.0 * sc), int(t * 2.0))
 	var bw := 130.0
 	_btn("play", Rect2(cx - bw * 0.5, bot - 56, bw, 26), "PLAY", GREEN, true, 16)
 	var row := ["genetics", "codex", "sound"]
@@ -225,7 +225,7 @@ func _codex() -> void:
 		if seen:
 			var lk := Species.look_of(id)
 			lk["size"] = mini(int(lk["size"]), 8)
-			Ui.creature(self, lk, r.get_center() + Vector2(0, -4), 1)
+			Ui.creature_fit(self, lk, Rect2(r.position + Vector2(2, 2), r.size - Vector2(4, 14)))
 			Ui.text(self, Vector2(r.get_center().x, r.end.y - 3), String(Species.ALL[id]["name"]).to_upper().substr(0, 11), Ui.INK_TEXT, Ui.small(), 8, 1, false)
 		else:
 			Ui.text(self, r.get_center() + Vector2(0, 4), "?", Color("8b6a5a"), Ui.bold(), 16, 1, false)
@@ -248,7 +248,7 @@ func _pause() -> void:
 	# left: you and your affinities
 	var lb := Rect2(s.position.x, top, 96, s.end.y - top)
 	Ui.board(self, lb)
-	Ui.creature(self, run.look, Vector2(lb.get_center().x, lb.position.y + 30), 2, int(t * 2.0))
+	Ui.creature_fit(self, run.look, Rect2(lb.position.x + 6, lb.position.y + 6, lb.size.x - 12, 46), int(t * 2.0))
 	var pts := run.affinity_points()
 	var y := lb.position.y + 58
 	for aff in ["predator", "prey", "gregarious", "imposing", "trickster", "duck"]:
@@ -307,7 +307,7 @@ func _end() -> void:
 	var b := Rect2(cx - minf(170.0, s.size.x * 0.5 - 6), s.position.y + 40, minf(340.0, s.size.x - 12), s.end.y - s.position.y - 66)
 	Ui.board(self, b)
 	if run:
-		Ui.creature(self, run.look, Vector2(b.position.x + 50, b.get_center().y), 3 if b.size.y > 120 else 2, int(t * 2.0))
+		Ui.creature_fit(self, run.look, Rect2(b.position.x + 8, b.position.y + 8, 84, b.size.y - 16), int(t * 2.0))
 		var x := b.position.x + 100
 		var y := b.position.y + 16
 		var fe := run.food_eaten

@@ -80,3 +80,43 @@ Our version:
    - each level adds +6 HP, +0.6 Physical and +0.6 Ability
 5. **Starts and bosses:** Gulp as the starter, a nursery first minute, bosses enrage in phase 2 with telegraphs, and an ally hard cap of 14.
 6. **Meta:** Genetics pick 2 of 3, and the DUCK / NO DUCK verdict (5+ duck parts or Convergent).
+
+## v4 "living clay" creatures (2026-09-26)
+
+**Research** (search snippets; the wiki and reviews are blocked by the proxy):
+- Crab's Darwin is "a blue blob with the texture of mochi".
+- Evolutions visibly add limbs, eyes, shells, tails, fur, claws, antlers and scales. They combine regardless of build, down to the exact count of legs and eyes.
+- Reviewers' one art complaint: too many adaptations "muddy the look" of a small creature.
+- Technique reference: Pudgy Pals (metaball spine plus SDF limbs, cel shading and outlines).
+
+**What we built:**
+
+1. **Genome** (`art/sculpt/genome.gd`):
+   - Every creature is numbers:
+     - plan: blob, quad, bug, fish, bird, frog, flat, duck or serpent
+     - length, height, head, neck
+     - tail length and tip
+     - legs: pairs, length, width, kind
+     - arms, back, crown, eyes (count, size), mouth, skin
+   - `of_run` builds the player's genome:
+     1. the look's parts
+     2. the metamorphosis form (the goo firms at 3 and 6 bodily mutations)
+     3. affinity drift (Predator long and low, Prey round with big ears and eyes, Imposing heavy with a hump, Trickster segmented with more eyes, Gregarious fluffy)
+     4. `GROW` for every evolution, per level
+     5. readability caps (up to 6 eyes, 2 horns, 4 arms, limb lengths capped by size)
+   - `of_species` plus `SPECIES` touches give every animal and boss its genome.
+2. **Sculptor** (`art/sculpt/sculptor.gd`), all on the CPU:
+   - Primitives (ellipses, tapered capsules) in 4 layers: far, body, near, hard. Each layer is a distance grid built with a smooth-min union, so parts grow out of the body.
+   - A bevel light from the grid's gradient, cut into 4 ramp steps, with a darker lower body.
+   - A mochi sheen on each blob; a jelly rim and highlights on the slime.
+   - Inner contour lines where parts overlap, and a colored dark outline.
+   - Pixel stamps for eyes and mouths.
+   - Poses: idle ×4 (breathing, blink), walk ×4 (legs on arcs, bob, tail sway, wing flap), bite ×1.
+3. **Presentation:**
+   - Taking a card morphs the body through 3 in-between genomes.
+   - Card portraits and the preview show your body after the card (`Run.preview`), cropped to the zone it changes.
+4. **Performance:**
+   - About 40 ms for a full frame set on desktop; UI and morph frames use a single-pose render.
+   - Every species is pre-baked while the menus are up.
+
+The old ASCII rig system (`rig.gd`, `sheets/bodies.gd`, `sheets/parts.gd`, `tools/art/author.py`) is retired.

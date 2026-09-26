@@ -104,7 +104,14 @@ const RIG := {
 }
 
 
+## An animal's look; "species" makes the art use its hand-tuned genome (Genome.of_species).
 static func look_of(id: String) -> Dictionary:
+	var lk := look_of_raw(id)
+	lk["species"] = id
+	return lk
+
+
+static func look_of_raw(id: String) -> Dictionary:
 	var lk := (get_def(id).get("look", {}) as Dictionary).duplicate()
 	lk["body"] = RIG.get(id, "mochi")
 	lk.erase("shape")

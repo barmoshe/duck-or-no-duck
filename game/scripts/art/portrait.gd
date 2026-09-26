@@ -1,34 +1,36 @@
 class_name Portrait
 extends RefCounted
-## Evolution card portraits: the evolution shown on YOUR creature, close up. Parts are
-## rendered with the Evolution Graphics System and cropped around the slot they change
-## (a bill crops to the face, legs to the feet); attacks, ultimates and moves show their
+## Evolution card portraits: the evolution shown on YOUR creature, close up. The body is
+## the Sculptor's render of your genome after taking the card (Run.preview), cropped
+## around the zone it changes (a bill crops to the face, legs to the feet, a passive that
+## reshapes you shows your whole body); attacks, ultimates and moves show their
 ## hand-drawn icon. Everything sits on a vignette in the affinity's color.
 
 const W := 60
 const H := 50
-## where on the creature each slot lives (fraction of its used rect, x from the tail)
-const FOCUS := {
-	"mouth": Vector2(0.85, 0.45), "eyes": Vector2(0.75, 0.3), "head": Vector2(0.7, 0.15), "crown": Vector2(0.7, 0.15),
-	"back": Vector2(0.45, 0.2), "armor": Vector2(0.45, 0.35), "tail": Vector2(0.12, 0.55), "legs": Vector2(0.5, 0.92),
-	"arms": Vector2(0.8, 0.7), "pattern": Vector2(0.5, 0.5), "hide": Vector2(0.5, 0.5), "shape": Vector2(0.5, 0.5),
-}
+const ZONE := {"mouth": "face", "eyes": "face", "head": "crown", "crown": "crown", "back": "back", "armor": "back",
+	"tail": "tail", "legs": "legs", "arms": "arms", "pattern": "body", "hide": "body", "shape": "body"}
 
 static var _cache := {}
 
 
-static func tex(run_look: Dictionary, id: String) -> Texture2D:
+static func tex(run: Run, id: String) -> Texture2D:
 	var d := Evolutions.get_def(id)
 	var lk: Dictionary = d.get("look", {})
-	var key := id + "|" + (Anatomy.key_of(run_look) if not lk.is_empty() else "")
+	var t := String(d.get("type", "passive"))
+	var icon_only := t in ["attack", "ultimate", "move"] and Icons.ALL.has(id)
+	var key := id + "|" + ("" if icon_only else Anatomy.key_of(run.look))
 	if _cache.has(key):
 		return _cache[key]
 	var img := _backdrop(String(d.get("aff", "prey")))
-	var t := String(d.get("type", "passive"))
-	if lk.is_empty() or t in ["attack", "ultimate", "move"]:
+	if icon_only:
 		_icon(img, id, t)
 	else:
-		_close_up(img, run_look, lk)
+		var zone := "body"
+		for k in lk:
+			zone = String(ZONE.get(String(k), "body"))
+			break
+		_close_up(img, run.preview(id), zone)
 	var tx := ImageTexture.create_from_image(img)
 	_cache[key] = tx
 	return tx
@@ -67,40 +69,45 @@ static func _icon(img: Image, id: String, t: String) -> void:
 	img.blend_rect(ic, Rect2i(Vector2i.ZERO, ic.get_size()), at)
 
 
-static func _close_up(img: Image, run_look: Dictionary, lk: Dictionary) -> void:
-	var look := run_look.duplicate()
-	var focus := Vector2(0.5, 0.5)
-	var n := 0
-	for k in lk:
-		if k == "shape":
-			look["body"] = {"duck": "duck", "tall": "bird"}.get(String(lk[k]), look.get("body", "mochi"))
-		else:
-			look[Run.LOOK_KEY.get(k, k)] = lk[k]
-		focus = focus + FOCUS.get(String(k), Vector2(0.5, 0.5)) if n > 0 else FOCUS.get(String(k), Vector2(0.5, 0.5))
-		n += 1
-	if n > 1:
-		focus /= float(n)
-	look["scale"] = 1
-	var cr := Anatomy.render(look, "idle", 0)
-	var used := cr.get_used_rect()
-	if used.size.x == 0:
-		return
-	cr = cr.get_region(used)
-	# a close-up at 3x around the part (whole-body changes at 2x)
-	var sc := 2 if lk.has("shape") else 3
+static func _close_up(img: Image, look: Dictionary, zone: String) -> void:
+	var g := Anatomy.genome(look)
+	var fr := Sculptor.single(g)
+	var cr := (fr["tex"] as Texture2D).get_image()
+	var origin: Vector2 = fr["foot"]
+	var rg := Sculptor.rig(g, {"anim": "idle", "i": 0})
+	var hd: Vector2 = rg["head"]
+	var bd: Vector2 = rg["body"]
+	var fr_r := float(rg["face_r"])
+	var ln := float(g["len"])
+	var hh := float(g["h"])
+	var c := bd
+	var sc := 3
+	match zone:
+		"face":
+			c = hd + Vector2(fr_r * 0.4, 0.0)
+		"crown":
+			c = hd + Vector2(0.0, -fr_r * 0.9)
+		"back":
+			c = bd + Vector2(-ln * 0.1, -hh * 0.45)
+		"tail":
+			c = bd + Vector2(-ln * 0.55, -hh * 0.1)
+		"legs":
+			c = Vector2(bd.x, -float(g["leg_len"]) * 0.5 - 1.0)
+		"arms":
+			c = bd + Vector2(ln * 0.45, hh * 0.35)
+		_:
+			sc = 2
+			var used := cr.get_used_rect()
+			c = Vector2(used.get_center()) - origin
+			if used.size.x * 2 > W or used.size.y * 2 > H:
+				sc = 1
 	var win := Vector2i(W / sc, H / sc)
-	var c := Vector2(cr.get_width() * focus.x, cr.get_height() * focus.y)
-	var x0 := clampi(int(c.x - win.x * 0.5), 0, maxi(0, cr.get_width() - win.x))
-	var y0 := clampi(int(c.y - win.y * 0.5), 0, maxi(0, cr.get_height() - win.y))
-	if cr.get_width() <= win.x:
-		x0 = 0
-	if cr.get_height() <= win.y:
-		y0 = 0
+	var cp := c + origin
+	var x0 := clampi(int(cp.x - win.x * 0.5), 0, maxi(0, cr.get_width() - win.x))
+	var y0 := clampi(int(cp.y - win.y * 0.5), 0, maxi(0, cr.get_height() - win.y))
 	var reg := cr.get_region(Rect2i(x0, y0, mini(win.x, cr.get_width()), mini(win.y, cr.get_height())))
 	reg.resize(reg.get_width() * sc, reg.get_height() * sc, Image.INTERPOLATE_NEAREST)
-	var at := Vector2i((W - reg.get_width()) / 2, H - reg.get_height() - (2 if cr.get_height() <= win.y else 0))
-	if cr.get_height() > win.y:
-		at.y = (H - reg.get_height()) / 2
+	var at := Vector2i((W - reg.get_width()) / 2, (H - reg.get_height()) / 2)
 	_shadow(img, reg, at + Vector2i(1, 2))
 	img.blend_rect(reg, Rect2i(Vector2i.ZERO, reg.get_size()), at)
 

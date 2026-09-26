@@ -25,8 +25,8 @@ const BASE_LOOK := {
 	"crown": "none", "back": "none", "armor": "none", "tail": "none", "legs": "none", "arms": "none", "hide": "none",
 }
 ## Puddle hatches as goo, firms into mochi, then metamorphoses into an affinity body.
-const MOCHI_AT := 4
-const METAMORPHOSIS_AT := 8
+const MOCHI_AT := 3
+const METAMORPHOSIS_AT := 6
 const AFFINITY_BODY := {
 	"predator": ["beast", "red"], "prey": ["beast", "green"], "gregarious": ["chunk", "pink"],
 	"imposing": ["chunk", "orange"], "trickster": ["bug", "purple"], "duck": ["duck", "duck"],
@@ -95,6 +95,21 @@ func _init(gen: Variant = "pioneer", press: int = 0, rng: RandomNumberGenerator 
 
 func has_gene(id: String) -> bool:
 	return id in genes
+
+
+## Your look after taking an evolution (for cards and the preview), without changing you.
+func preview(id: String) -> Dictionary:
+	var c := Run.new(genes, pressure, null)
+	c.owned = owned.duplicate()
+	c.order = order.duplicate()
+	c.attacks = attacks.duplicate()
+	c.ultimate = ultimate
+	c.move = move
+	c.level = level
+	c.branches = branches.duplicate()
+	c._bonus = _bonus.duplicate()
+	c.take(id)
+	return c.look
 
 
 func _grant(id: String) -> void:
@@ -360,6 +375,8 @@ func _look() -> void:
 			look["legs"] = "stubby"
 	elif n >= MOCHI_AT:
 		look["body"] = "mochi"
+	# the living-clay body the Sculptor draws (continuous: every pick shows)
+	look["gen"] = Genome.of_run(self)
 
 
 ## Walking speed in px/s.
