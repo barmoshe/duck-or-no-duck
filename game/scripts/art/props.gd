@@ -530,74 +530,13 @@ static func _lotus(p: Px, q: Vector2i) -> void:
 
 
 # ------------------------------------------------------------------ food pickups
-## "food_<kind>_<rarity>" (apple, pear, snowberry, meat, fish; rarity 0..3) or "food_heart".
-## Rarer food is drawn a little bigger with a colored rim and halo; legendary turns gold.
+## "food_<type>_<rarity>_<stage>": fruit, meat or fish; rarity 0..3 (green, blue, purple,
+## gold); stage 0..3 as it's eaten. Hand-drawn in DarwinFood (tools/art/darwin_food.py).
 static func _food(name: String) -> Image:
-	var p := Px.make(16, 15)
 	var parts := name.split("_")
-	var kind := parts[1]
-	var rar := int(parts[2]) if parts.size() > 2 else 0
-	var k := 1.0 + rar * 0.1
-	var cx := 8.0
-	var cy := 8.0
-	match kind:
-		"heart":
-			for q in [Vector2(6, 6), Vector2(10, 6)]:
-				p.circle(q.x, q.y, 2.6, Pal.e("red"))
-			p.poly(PackedVector2Array([Vector2(3.4, 6.8), Vector2(12.6, 6.8), Vector2(8, 12)]), Pal.e("red"))
-			p.put(5, 5, Pal.e("white"))
-			p.put(6, 5, Pal.e("peach"))
-			p.put(10, 9, Pal.e("wine"))
-		"apple":
-			p.circle(cx, cy + 1, 3.6 * k, Pal.e("red"))
-			p.circle(cx + 0.8, cy + 1.8, 2.4 * k, Pal.e("wine"))
-			p.circle(cx - 0.4, cy + 0.6, 2.4 * k, Pal.e("red"))
-			p.put(int(cx) - 2, int(cy) - 1, Pal.e("salmon"))
-			p.put(int(cx) - 1, int(cy) - 2, Pal.e("peach"))
-			p.line(cx, cy - 2.5 * k, cx + 1, cy - 4.5 * k, Pal.e("bark"), 1.0)
-			p.put(int(cx) + 2, int(cy - 4 * k), Pal.e("leaf"))
-			p.put(int(cx) + 3, int(cy - 4 * k), Pal.e("grass"))
-		"pear":
-			p.ellipse(cx, cy + 1, 3.0 * k, 3.8 * k, Pal.e("rose"))
-			p.ellipse(cx + 0.7, cy + 1.8, 2.0 * k, 2.8 * k, Pal.e("grape"))
-			p.ellipse(cx - 0.5, cy + 0.4, 2.0 * k, 2.6 * k, Pal.e("rose"))
-			p.put(int(cx) - 1, int(cy) - 1, Pal.e("salmon"))
-			for q in [Vector2i(0, 2), Vector2i(2, 0), Vector2i(-1, 4)]:
-				p.put(int(cx) + q.x, int(cy) + q.y, Pal.e("peach"))
-			p.rect(int(cx) - 1, int(cy - 4 * k), 3, 1, Pal.e("leaf"))
-		"snowberry":
-			for q in [Vector2(cx - 2, cy + 2), Vector2(cx + 2, cy + 2), Vector2(cx, cy - 0.5)]:
-				p.circle(q.x, q.y, 2.3 * k, Pal.e("sky"))
-				p.put(int(q.x) - 1, int(q.y) - 1, Pal.e("white"))
-			p.line(cx, cy - 2.5, cx + 2, cy - 4.5, Pal.e("pine"), 1.0)
-			p.put(int(cx) + 3, int(cy) - 4, Pal.e("leaf"))
-		"meat":
-			p.ellipse(cx - 1, cy, 3.6 * k, 3.0 * k, Pal.e("red"))
-			p.ellipse(cx - 1.5, cy - 0.5, 2.6 * k, 2.0 * k, Pal.e("salmon"))
-			p.put(int(cx) - 3, int(cy) - 2, Pal.e("peach"))
-			p.line(cx + 2, cy + 1, cx + 5, cy + 4, Pal.e("mist"), 1.0)
-			p.circle(cx + 5.5, cy + 4.5, 1.2, Pal.e("white"))
-			p.put(int(cx) + 6, int(cy) + 3, Pal.e("white"))
-		"fish":
-			p.ellipse(cx - 0.5, cy, 4.4 * k, 2.4 * k, Pal.e("sky"))
-			p.ellipse(cx - 1, cy - 0.6, 3.4 * k, 1.2 * k, Pal.e("cyan"))
-			p.line(cx - 3, cy + 1.5, cx + 2, cy + 1.5, Pal.e("navy"), 1.0)
-			p.poly(PackedVector2Array([Vector2(cx + 3, cy), Vector2(cx + 6.5, cy - 3), Vector2(cx + 6.5, cy + 3)]), Pal.e("sky"))
-			p.put(int(cx) - 3, int(cy) - 1, Pal.INK)
-	if rar == 3:
-		# legendary: gilded
-		for i in p.px.size():
-			var c := p.px[i]
-			if c.a > 0.5:
-				p.px[i] = c.lerp(Pal.e("amber"), 0.45).lightened(0.08)
-	if rar == 0 or kind == "heart":
-		p.outline(Pal.INK, 0.35)
-	else:
-		var g := Pal.e(String(Foods.GLOW[rar]))
-		p.outline(Pal.INK, 0.35)
-		p.outline(g, 0.0)
-		p.outline(Color(g, 0.4), 0.0)
-	if rar == 3:
-		for q in [Vector2i(2, 2), Vector2i(13, 4), Vector2i(12, 13)]:
-			p.put(q.x, q.y, Pal.e("white"))
-	return p.img
+	var key := "%s_%s" % [parts[1], parts[2] if parts.size() > 2 else "0"]
+	var stage := clampi(int(parts[3]) if parts.size() > 3 else 0, 0, 3)
+	var rows: Array = DarwinFood.ALL.get(key, DarwinFood.ALL["fruit_0"])[stage]
+	var img := Image.create(String(rows[0]).length(), rows.size(), false, Image.FORMAT_RGBA8)
+	DarwinArt.stamp(img, rows, Vector2i.ZERO)
+	return img

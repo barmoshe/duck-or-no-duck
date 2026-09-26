@@ -34,17 +34,13 @@ var actors: Array[Actor] = []
 var grid := {}
 var obst_grid := {}
 var tall_props: Array = []  # trees and pines, faded when the player walks behind them
-var foods: Array = []  # {n, p, v, z, vz, xp, type, rar, mut, life, bob, scav}
+var foods: Array = []  # {n, p, v, z, vz, xp, type, rar, mut, life, bob, scav, bites, heal}
 var sources: Array = []  # fruit trees, bushes, cacti: {n, p, o, stock, max, t, shed, shake, fruit}
 var pools: Array = []  # fish pools: {n, p, stock, t, anim}
-var carcass_tex := {}  # look key -> the body lying on its back
 var tips := {}  # one-time food tips already shown
-var meal: Dictionary = {}  # the piece you're chewing (a food, a carcass, or one from your cheeks)
-var meal_src := ""  # ground | pouch
-var meal_t := 0.0
-var meal_need := 1.0
-var pouch: Array = []  # Cheek Pouch: food stored in your cheeks, eaten even on the move
-var crumb_t := 0.0
+var bite_cd := 0.0  # seconds to the next bite; the first bite on reaching food is instant
+var bite_show := 0.0  # the bite pose lingers this long after a bite
+var pouch: Array = []  # Cheek Pouch: food stored in your cheeks, bitten along with the rest
 var rum_t := 0.0  # Ruminant: seconds of calm chewing
 var rum_cd := 0.0
 var shrooms: Array = []  # {n, p, fx, good}
@@ -159,6 +155,9 @@ func clear() -> void:
 	sources.clear()
 	pools.clear()
 	tips.clear()
+	pouch.clear()
+	bite_cd = 0.0
+	bite_show = 0.0
 	rum_t = 0.0
 	rum_cd = 0.0
 	shrooms.clear()
@@ -598,7 +597,8 @@ func _collide() -> void:
 
 
 # ------------------------------------------------------------------ food
-## Animals drop meat (fish-like animals drop fish); each piece rolls a rarity.
+## A dead animal drops pieces of meat (fish-like animals drop fish) whoever killed it;
+## each piece rolls a rarity. Big animals and alphas drop more.
 func drop_food(p: Vector2, xp: float, big: bool, fish: bool, scav: bool, source: String = "animal") -> void:
 	var pieces := clampi(int(xp / 4.0) + 1, 1, 6)
 	if big:
@@ -611,22 +611,24 @@ func _luck() -> float:
 	return float(run.stats["luck"]) + run.duck_parts() * 1.5
 
 
-## Roll a rarity (and maybe a heart) for one piece of food and put it in the world.
-func _roll_food(p: Vector2, type: String, xp: float, source: String, scav: bool = false, variant: String = "", z: float = 0.0) -> Dictionary:
+## Roll a rarity (and whether it sparkles and heals) for one piece of food and put it
+## in the world.
+func _roll_food(p: Vector2, type: String, xp: float, source: String, scav: bool = false, z: float = 0.0) -> Dictionary:
 	var rar := Foods.roll(rng, source, _luck())
-	if rng.randf() < Foods.heart_chance(rar, player.hp / maxf(1.0, player.max_hp) if valid(player) else 1.0):
-		return spawn_food(p, "heart", 1.0, 0, false, "", z)
-	return spawn_food(p, type, xp, rar, scav, variant, z)
+	var hp_frac := player.hp / maxf(1.0, player.max_hp) if valid(player) else 1.0
+	var heal := rng.randf() < Foods.heal_chance(rar, hp_frac)
+	return spawn_food(p, type, xp, rar, scav, z, heal)
 
 
-func spawn_food(p: Vector2, type: String, xp: float, rar: int, scav: bool = false, variant: String = "", z: float = 0.0) -> Dictionary:
+func spawn_food(p: Vector2, type: String, xp: float, rar: int, scav: bool = false, z: float = 0.0, heal: bool = false) -> Dictionary:
 	var s := Sprite2D.new()
-	s.texture = Props.tex(Foods.sprite_name(type, variant if variant != "" else "apple", rar))
+	s.texture = Props.tex(Foods.sprite_name(type, rar))
 	s.position = p.floor()
 	food_layer.add_child(s)
 	var life: float = Foods.LIFE[rar] * (1.0 + float(run.stats["omni"]) * 0.25)
 	var f := {"n": s, "p": p, "v": Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(30.0, 80.0), "z": z, "vz": 0.0,
-		"xp": xp, "type": type, "rar": rar, "mut": 0, "life": life, "bob": rng.randf() * 6.0, "scav": scav}
+		"xp": xp, "type": type, "rar": rar, "mut": 0, "life": life, "bob": rng.randf() * 6.0, "scav": scav,
+		"bites": Foods.BITES, "heal": heal and rar < 3}
 	foods.append(f)
 	return f
 
@@ -643,36 +645,9 @@ func drop_mutagen(p: Vector2, n: int) -> void:
 
 ## Vegans can't eat meat or fish: it stays on the ground for the animals.
 func can_eat(f: Dictionary) -> bool:
-	if float(run.stats["vegan"]) > 0.0 and String(f["type"]) in ["meat", "fish", "carcass"]:
+	if float(run.stats["vegan"]) > 0.0 and String(f["type"]) in ["meat", "fish"]:
 		return false
 	return true
-
-
-## A big kill leaves its body: stay close to chew it, bite by bite, before a scavenger does.
-func _make_carcass(a: Actor, xp: float, fish: bool, scav: bool, source: String) -> void:
-	var key := Anatomy.key_of(a.look)
-	if not carcass_tex.has(key):
-		var img: Image = (a.frames["idle"][0] as Texture2D).get_image()
-		img = img.get_region(img.get_used_rect())
-		img.flip_y()
-		for y in img.get_height():
-			for x in img.get_width():
-				var c := img.get_pixel(x, y)
-				if c.a > 0.0:
-					var g := c.get_luminance()
-					img.set_pixel(x, y, Color(c.lerp(Color(g, g * 0.92, g * 0.9), 0.35).darkened(0.12), c.a))
-		carcass_tex[key] = ImageTexture.create_from_image(img)
-	var tex: Texture2D = carcass_tex[key]
-	var s := Sprite2D.new()
-	s.texture = tex
-	s.position = (a.position - Vector2(0, floorf(tex.get_size().y * 0.5) - 2)).floor()
-	food_layer.add_child(s)
-	var bites := clampi(int(xp / 4.0) + 2, 2, 8)
-	foods.append({"n": s, "p": a.position, "v": Vector2.ZERO, "z": 0.0, "vz": 0.0, "xp": xp * 1.2 / bites,
-		"type": "carcass", "meat": "fish" if fish else "meat", "rar": 0, "mut": 0, "life": 40.0, "bob": 0.0,
-		"scav": scav, "bites": bites, "max_bites": bites, "chew": 0.0, "src": source, "r": a.r})
-	if not scav:
-		_tip("carcass", "Big kills leave a carcass: stand next to it to eat it bite by bite")
 
 
 func _tip(id: String, text: String) -> void:
@@ -711,7 +686,7 @@ func _drop_fruit(src: Dictionary, falling: bool = true) -> void:
 	if map.water_at(p) != 0 or map.is_wall(p):
 		p = (src["p"] as Vector2) + Vector2(rng.randf_range(-6, 6), 8)
 	var xp := Foods.FRUIT_XP * (1.0 + run.minute() * 0.04)
-	var f := _roll_food(p, "fruit", xp, "plant", false, String(src["fruit"]), (22.0 if tall else 10.0) if falling else 0.0)
+	var f := _roll_food(p, "fruit", xp, "plant", false, (22.0 if tall else 10.0) if falling else 0.0)
 	f["v"] = Vector2.ZERO
 	f["life"] = float(f["life"]) + 15.0
 
@@ -782,7 +757,7 @@ func _fish_jump(pl: Dictionary) -> void:
 	var p: Vector2 = pl["p"]
 	var xp := Foods.FISH_POOL_XP * (1.0 + run.minute() * 0.05)
 	for i in 3 if run.has_gene("angler") else 2:
-		var f := _roll_food(p, "fish", xp, "pool", false, "", 4.0)
+		var f := _roll_food(p, "fish", xp, "pool", false, 4.0)
 		f["v"] = Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(40.0, 70.0)
 		f["vz"] = 70.0
 	fx.burst(p, Pal.e("cyan"), 12, 60.0, 1.0, 0.5, 120.0)
@@ -791,27 +766,17 @@ func _fish_jump(pl: Dictionary) -> void:
 
 
 func _pickups(dt: float) -> void:
-	fx.chew_on = false
 	player.eating = false
 	_ruminate(dt)
 	_food_sources(dt)
 	var pp := player.position
 	for i in range(foods.size() - 1, -1, -1):
 		var f: Dictionary = foods[i]
-		var is_meal := is_same(f, meal)
-		if not is_meal:
-			f["life"] = float(f["life"]) - dt  # the piece in your mouth doesn't spoil
+		f["life"] = float(f["life"]) - dt
 		var n: Sprite2D = f["n"]
 		if float(f["life"]) <= 0.0:
 			n.queue_free()
 			foods.remove_at(i)
-			continue
-		if String(f["type"]) == "carcass":
-			if float(f["life"]) <= 0.0:
-				n.queue_free()
-				foods.remove_at(i)
-			elif float(f["life"]) < 4.0:
-				n.visible = int(float(f["life"]) * 8.0) % 2 == 0
 			continue
 		# falling out of a tree or jumping out of a pool
 		var z := float(f["z"])
@@ -826,25 +791,29 @@ func _pickups(dt: float) -> void:
 			f["z"] = z
 		var to: Vector2 = pp - (f["p"] as Vector2)
 		var d := to.length()
-		# hearts and mutagen are picked up on touch (and drift to you from close by);
-		# food has to be eaten: only the piece you're chewing slides into your mouth
-		var grab := int(f["mut"]) > 0 or String(f["type"]) == "heart"
+		# mutagen is picked up on touch (and drifts to you from close by); food stays where
+		# it lies and is eaten from within your Feeding Distance
+		var grab := int(f["mut"]) > 0
 		if grab and d < 22.0 and not player.under and z <= 0.0:
 			f["v"] = (f["v"] as Vector2).lerp(to.normalized() * 160.0, minf(1.0, dt * 8.0))
-		elif is_meal and d > player.r * 0.6 and z <= 0.0:
-			f["v"] = to.normalized() * 70.0
 		else:
 			f["v"] = (f["v"] as Vector2) * maxf(0.0, 1.0 - dt * (1.5 if z > 0.0 else 5.0))
 		f["p"] = (f["p"] as Vector2) + (f["v"] as Vector2) * dt
 		f["bob"] = float(f["bob"]) + dt
-		var bob := 0.0 if z > 0.0 else roundf(absf(sin(float(f["bob"]) * 3.0)) * (2.0 if int(f["rar"]) > 0 else 1.0))
+		var whole := int(f.get("bites", 0)) >= Foods.BITES
+		var bob := 0.0 if z > 0.0 or not whole else roundf(absf(sin(float(f["bob"]) * 3.0)) * (2.0 if int(f["rar"]) > 0 else 1.0))
 		n.position = ((f["p"] as Vector2) + Vector2(0, -bob - roundf(z))).floor()
 		if float(f["life"]) < 4.0:
 			n.visible = int(float(f["life"]) * 8.0) % 2 == 0
+		# legendary food twinkles gold; healing food twinkles pink
 		if int(f["rar"]) == 3 and rng.randf() < dt * 3.0:
-			fx.burst(n.position + Vector2(rng.randf_range(-5, 5), rng.randf_range(-5, 3)), Pal.e("lemon"), 1, 8.0, 1.0, 0.4)
+			fx.twinkle(n.position + Vector2(rng.randf_range(-7, 7), rng.randf_range(-7, 4)), Pal.e("lemon"))
+		elif f.get("heal", false) and rng.randf() < dt * 2.5:
+			fx.twinkle(n.position + Vector2(rng.randf_range(-7, 7), rng.randf_range(-8, 3)), Pal.e("salmon"))
 		if grab and d < player.r + 5.0 and not player.under and z <= 0.0:
-			_eat(f)
+			run.mutagen += int(f["mut"])
+			fx.text(pp + Vector2(0, -player.r * 2.0), "+1 MUTAGEN", Pal.c("green", 4))
+			Sfx.play("mutagen")
 			n.queue_free()
 			foods.remove_at(i)
 	_feed(dt)
@@ -872,31 +841,50 @@ func reach() -> float:
 	return player.r + float(run.stats["magnet"])
 
 
+## How far Cheek Pouch reaches for food to store: twice your Feeding Distance.
+func pouch_reach() -> float:
+	return player.r + float(run.stats["magnet"]) * 2.0 + 10.0
+
+
 func _edible(f: Dictionary) -> bool:
-	return float(f["z"]) <= 0.0 and float(f["life"]) > 0.0 and int(f["mut"]) == 0 and String(f["type"]) != "heart" and can_eat(f)
+	return float(f["z"]) <= 0.0 and float(f["life"]) > 0.0 and int(f["mut"]) == 0 and can_eat(f)
 
 
-## Eating, as Crab does it: stand still next to food and chew it, one piece at a time;
-## it takes time (Feeding Speed), from within reach (Feeding Distance). Cheek Pouch
-## stores food in reach while you're busy or moving, and eats it even on the move.
+## The pieces you'd bite right now: everything edible within your Feeding Distance.
+func in_reach() -> Array:
+	var out := []
+	if not valid(player) or player.under:
+		return out
+	var pp := player.position
+	var r := reach()
+	for f in foods:
+		if _edible(f) and (f["p"] as Vector2).distance_to(pp) < r:
+			out.append(f)
+	return out
+
+
+## Eating, as Crab does it: walk over food and you eat it. Every piece in your Feeding
+## Distance is bitten at once, one bite per bite time (Feeding Speed); the first bite on
+## reaching food is instant because the clock runs down while you're not eating. A piece
+## takes four bites and shrinks with each. Cheek Pouch stores food from further out and
+## bites it along with the rest, so you can keep moving.
 func _feed(dt: float) -> void:
+	bite_cd = maxf(0.0, bite_cd - dt)
+	bite_show = maxf(0.0, bite_show - dt)
 	if not valid(player) or player.under:
 		return
+	player.eating = bite_show > 0.0
 	var pp := player.position
-	var still := player.vel.length() < 30.0
-	var r := reach()
-	# the piece on the ground got stolen, spoiled, or you walked off
-	if meal_src == "ground":
-		var far := (meal["p"] as Vector2).distance_to(pp) > r + float(meal.get("r", 0.0)) + 6.0
-		if float(meal["life"]) <= 0.0 or far:
-			_clear_meal()
 	var cap := int(run.stats["pouch"])
-	if cap > 0 and pouch.size() < cap and (not meal.is_empty() or not still):
+	if cap > 0 and pouch.size() < cap:
+		var pr := pouch_reach()
+		var r := reach()
 		for i in range(foods.size() - 1, -1, -1):
 			if pouch.size() >= cap:
 				break
 			var f: Dictionary = foods[i]
-			if is_same(f, meal) or String(f["type"]) == "carcass" or not _edible(f) or (f["p"] as Vector2).distance_to(pp) >= r:
+			var d := (f["p"] as Vector2).distance_to(pp)
+			if not _edible(f) or d < r or d >= pr:
 				continue
 			var n: Sprite2D = f["n"]
 			var kept := f.duplicate()
@@ -907,86 +895,102 @@ func _feed(dt: float) -> void:
 			foods.remove_at(i)
 			fx.burst(pp + Vector2(0, -12), Pal.e("peach"), 3, 30.0, 1.0, 0.3)
 			Sfx.play("pop", 1.5, -10.0)
-			_tip("pouch", "Food in your cheeks is eaten on the move")
-	# the next meal: your cheeks first, then the nearest food in reach if you stand still
-	if meal.is_empty():
-		if not pouch.is_empty():
-			_start_meal(pouch.pop_front(), "pouch")
-		elif still:
-			var best: Dictionary = {}
-			var bd := INF
-			for f in foods:
-				if not _edible(f):
-					continue
-				var d := (f["p"] as Vector2).distance_to(pp) - float(f.get("r", 0.0))
-				if d < r and d < bd:
-					bd = d
-					best = f
-			if not best.is_empty():
-				_start_meal(best, "ground")
-	if meal.is_empty():
+			_tip("pouch", "Cheek Pouch stores food nearby and eats it on the move")
+	if bite_cd > 0.0:
 		return
-	var chewing := meal_src == "pouch" or still
-	if chewing:
-		meal_t += dt
-		player.eating = true
-		crumb_t -= dt
-		if crumb_t <= 0.0:
-			crumb_t = 0.22
-			var col := Pal.e(String(Foods.TYPE_COL.get(String(meal.get("meat", meal["type"])), "white")))
-			fx.burst(pp + Vector2(player.face * 6.0, -10.0), col, 2, 30.0, 1.0, 0.3, 120.0)
-	fx.chew_on = true
-	fx.chew_p = pp + Vector2(0, -34)
-	fx.chew_frac = meal_t / meal_need
-	fx.chew_icon = meal.get("icon", null)
-	if meal_t >= meal_need:
-		_finish_meal()
-
-
-func _start_meal(f: Dictionary, src: String) -> void:
-	meal = f
-	meal_src = src
-	meal_t = 0.0
-	var carcass := String(f["type"]) == "carcass"
-	meal_need = Foods.eat_time("carcass" if carcass else String(f["type"]), 0 if carcass else int(f["rar"]), float(run.stats["feed"]))
-	if not f.has("icon"):
-		f["icon"] = Props.tex(Foods.sprite_name(String(f["meat"]), "", 0)) if carcass else (f["n"] as Sprite2D).texture
-	_tip("eat", "Stand still next to food to eat it")
-
-
-func _finish_meal() -> void:
-	var f := meal
-	var src := meal_src
-	_clear_meal()
-	if String(f["type"]) == "carcass":
-		# one bite: its rarity is rolled now, and it goes straight to your Progress
-		f["bites"] = int(f["bites"]) - 1
-		var rar := Foods.roll(rng, String(f["src"]), _luck())
-		_eat({"type": String(f["meat"]), "rar": rar, "xp": float(f["xp"]), "scav": bool(f["scav"]), "mut": 0})
-		fx.burst((f["p"] as Vector2) + Vector2(0, -4), Pal.e("red"), 4, 40.0, 1.0, 0.35, 100.0)
+	var plate := in_reach()
+	if plate.is_empty() and pouch.is_empty():
+		return
+	bite_cd = Foods.bite_time(float(run.stats["feed"]))
+	bite_show = minf(0.25, bite_cd * 0.7)
+	player.eating = true
+	_tip("eat", "Walk over food to eat it: everything in reach, four bites a piece")
+	var gain := 0.0
+	var healed := 0.0
+	var best := -1
+	var type := ""
+	for f in plate:
+		var r := _bite(f)
+		gain += float(r["xp"])
+		healed += float(r["hp"])
+		type = String(f["type"]) if type == "" else type
+		if int(f["bites"]) <= 0 and int(f["rar"]) > best:
+			best = int(f["rar"])
+			type = String(f["type"])
+		fx.burst((f["n"] as Sprite2D).position + Vector2(0, -2), Pal.e(String(Foods.TYPE_COL.get(String(f["type"]), "white"))), 3, 35.0, 1.0, 0.3, 120.0)
 		if int(f["bites"]) <= 0:
-			f["life"] = 0.0
-		return
-	_eat(f)
-	if src == "ground":
-		var i := foods.find(f)
-		if i >= 0:
-			(f["n"] as Sprite2D).queue_free()
-			foods.remove_at(i)
+			var i := foods.find(f)
+			if i >= 0:
+				(f["n"] as Sprite2D).queue_free()
+				foods.remove_at(i)
+		else:
+			(f["n"] as Sprite2D).texture = Props.tex(Foods.sprite_name(String(f["type"]), int(f["rar"]), Foods.BITES - int(f["bites"])))
+	for i in range(pouch.size() - 1, -1, -1):
+		var pf: Dictionary = pouch[i]
+		var r2 := _bite(pf)
+		gain += float(r2["xp"])
+		healed += float(r2["hp"])
+		type = String(pf["type"]) if type == "" else type
+		if int(pf["bites"]) <= 0 and int(pf["rar"]) > best:
+			best = int(pf["rar"])
+			type = String(pf["type"])
+		if int(pf["bites"]) <= 0:
+			pouch.remove_at(i)
+		else:
+			pf["icon"] = Props.tex(Foods.sprite_name(String(pf["type"]), int(pf["rar"]), Foods.BITES - int(pf["bites"])))
+	_bite_feedback(gain, healed, best, type)
+	# everything in reach is gone: the finishing sparkle and sound
+	if in_reach().is_empty() and pouch.is_empty():
+		fx.twinkle(pp + Vector2(player.face * 7.0, -player.r * 1.4), Pal.e("white"), 3)
+		Sfx.play("pop", 1.6, -6.0)
 
 
-func _clear_meal() -> void:
-	meal = {}
-	meal_src = ""
-	meal_t = 0.0
+## One bite of a piece: its share of Progress (the last bite pays double) and, for
+## sparkling food, a little health.
+func _bite(f: Dictionary) -> Dictionary:
+	var left := int(f["bites"])
+	var xp := food_value(f) * Foods.bite_share(left)
+	var hp := player.max_hp * Foods.HEAL_BITE if f.get("heal", false) else 0.0
+	f["bites"] = left - 1
+	_gain_xp(xp)
+	if hp > 0.0:
+		player.hp = minf(player.max_hp, player.hp + hp)
+	if left <= 1:
+		var type := String(f["type"])
+		run.food_eaten[type] = int(run.food_eaten.get(type, 0)) + 1
+		if type == "fruit":
+			var fh := float(run.stats["fruit_heal"]) + float(run.stats["vegan"]) * 4.0
+			if fh > 0.0:
+				player.hp = minf(player.max_hp, player.hp + fh)
+	return {"xp": xp, "hp": hp}
 
 
-## An animal ate or stole this piece of food.
+## One number per bite over your head, however many pieces you bit; finishing a rare
+## piece (rar: the rarest one finished this bite, -1 for none) shouts its rarity.
+func _bite_feedback(gain: float, healed: float, rar: int, type: String) -> void:
+	var head := player.position + Vector2(0, -player.r * 2.0)
+	var col := Pal.e(String(Foods.TYPE_COL.get(type, "white")))
+	if rar >= 2:
+		fx.text(head + Vector2(0, -9), String(Foods.RARITY[rar]).to_upper() + "!", Pal.e("rose") if rar == 2 else Pal.e("amber"), rar == 3)
+		fx.burst(player.position + Vector2(0, -player.r), Pal.e("amber") if rar == 3 else Pal.e("rose"), 3 + rar * 2, 50.0, 1.0, 0.5)
+	if gain > 0.0:
+		fx.text(head + Vector2(randf_range(-4, 4), 0), "+%d" % maxi(1, roundi(gain)), col)
+	if healed > 0.0:
+		fx.text(head + Vector2(randf_range(-4, 4), 8), "+%d HP" % ceili(healed), Pal.e("salmon"))
+		Sfx.play("heal", 1.3, -8.0)
+	Sfx.play("chomp" if type == "meat" else "slurp", randf_range(0.95, 1.1) + maxi(0, rar) * 0.08, -6.0)
+
+
+## An animal took a bite of this piece of food; the last bite finishes it.
 func take_food(f: Dictionary) -> void:
-	f["life"] = 0.0
+	f["bites"] = int(f.get("bites", 1)) - 1
+	if int(f["bites"]) <= 0:
+		f["life"] = 0.0
+	elif is_instance_valid(f["n"]):
+		(f["n"] as Sprite2D).texture = Props.tex(Foods.sprite_name(String(f["type"]), int(f["rar"]), Foods.BITES - int(f["bites"])))
 
 
-## Progress a piece of food is worth to you: rarity x diet bonuses.
+## Progress a whole piece of food is worth to you: rarity x diet bonuses.
 func food_value(f: Dictionary) -> float:
 	var type := String(f["type"])
 	var bonus := float(run.stats["food"]) + float(run.stats["omni"]) * 12.0
@@ -1000,39 +1004,6 @@ func food_value(f: Dictionary) -> float:
 	if f.get("scav", false):
 		bonus += float(run.stats["scav_xp"])
 	return float(f["xp"]) * float(Foods.XP_MULT[int(f["rar"])]) * Foods.VALUE * (1.0 + bonus / 100.0)
-
-
-func _eat(f: Dictionary) -> void:
-	var head := player.position + Vector2(0, -player.r * 2.0)
-	if int(f["mut"]) > 0:
-		run.mutagen += int(f["mut"])
-		fx.text(head, "+1 MUTAGEN", Pal.c("green", 4))
-		Sfx.play("mutagen")
-		return
-	var type := String(f["type"])
-	var rar := int(f["rar"])
-	if type == "heart":
-		var amt := player.max_hp * Foods.HEART_HEAL
-		player.hp = minf(player.max_hp, player.hp + amt)
-		fx.text(head, "+%d HP" % ceili(amt), Pal.e("salmon"))
-		fx.burst(player.position + Vector2(0, -player.r), Pal.e("salmon"), 6, 30.0)
-		Sfx.play("heal", 1.2, -4.0)
-		_gain_xp(float(f["xp"]))
-		return
-	var gain := food_value(f)
-	_gain_xp(gain)
-	run.food_eaten[type] = int(run.food_eaten.get(type, 0)) + 1
-	# eating heals a little (a rare piece more); fruit heals more with Herbivore and Vegan
-	var heal := player.max_hp * Foods.EAT_HEAL * (1.0 + rar)
-	if type == "fruit":
-		heal += float(run.stats["fruit_heal"]) + float(run.stats["vegan"]) * 4.0
-	player.hp = minf(player.max_hp, player.hp + heal)
-	var col := Pal.e(String(Foods.TYPE_COL.get(type, "white")))
-	if rar >= 2:
-		fx.text(head + Vector2(0, -9), String(Foods.RARITY[rar]).to_upper() + "!", Pal.e("rose") if rar == 2 else Pal.e("amber"), rar == 3)
-		fx.burst(player.position + Vector2(0, -player.r), Pal.e("amber") if rar == 3 else Pal.e("rose"), 6 + rar * 3, 50.0, 1.0, 0.5)
-	fx.text(head + Vector2(randf_range(-4, 4), 0), "+%d" % maxi(1, roundi(gain)), col)
-	Sfx.play("chomp" if type == "meat" else "slurp", randf_range(0.95, 1.1) + rar * 0.08, -5.0)
 
 
 func _gain_xp(v: float) -> void:
@@ -1095,7 +1066,7 @@ func apply_fx(e: Dictionary) -> void:
 	if e.has("fruit"):
 		for i in int(e["fruit"]):
 			var fp := p.position + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(10, 40)
-			_roll_food(fp, "fruit", Foods.FRUIT_XP * (1.0 + run.minute() * 0.04), "plant", false, Foods.FRUIT_OF_BIOME[clampi(map.biome_at(fp), 0, 3)], 14.0)
+			_roll_food(fp, "fruit", Foods.FRUIT_XP * (1.0 + run.minute() * 0.04), "plant", false, 14.0)
 	if e.has("mushrooms"):
 		for i in int(e["mushrooms"]):
 			var sp := p.position + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(24, 90)
@@ -1166,11 +1137,8 @@ func _reap() -> void:
 			var d := Species.get_def(a.species)
 			var fxp := a.xp_value * (1.0 + run.minute() * 0.04)
 			var fsrc := "alpha" if a.alpha else "animal"
-			# big kills leave a carcass to chew; small ones pop straight into food
-			if a.r >= 8.5 or a.alpha:
-				_make_carcass(a, fxp, bool(d.get("fish", false)), not by_us, fsrc)
-			else:
-				drop_food(a.position, fxp, false, bool(d.get("fish", false)), not by_us, fsrc)
+			# the body becomes pieces of food on the ground; big animals and alphas drop more
+			drop_food(a.position, fxp, a.r >= 8.5 or a.alpha, bool(d.get("fish", false)), not by_us, fsrc)
 			var mchance := 0.03 * (1.0 + float(run.stats["luck"]) * 0.2)
 			if a.alpha:
 				drop_mutagen(a.position, 1 + (1 if rng.randf() < 0.4 else 0))

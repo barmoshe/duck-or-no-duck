@@ -107,7 +107,7 @@ static func think(w: World, a: Actor) -> void:
 	elif a.state == "scavenge":
 		var bdf := 150.0
 		for f in w.foods:
-			if String(f["type"]) in ["meat", "fish", "carcass"]:
+			if String(f["type"]) in ["meat", "fish"]:
 				var d2 := (f["p"] as Vector2).distance_to(a.position)
 				if d2 < bdf:
 					bdf = d2
@@ -172,19 +172,15 @@ static func follow(w: World, a: Actor) -> void:
 			if not bestf.is_empty() and float(bestf.get("life", 0.0)) > 0.0:
 				var to4: Vector2 = (bestf["p"] as Vector2) - a.position
 				dir = to4.normalized()
-				if to4.length() < a.r + 4.0 + float(bestf.get("r", 0.0)):
-					if String(bestf["type"]) == "carcass":
-						dir *= 0.1
-						a.eat_t += 0.2
-						if a.eat_t > 0.8:
-							a.eat_t = 0.0
-							bestf["bites"] = int(bestf["bites"]) - 1  # a scavenger tears off a bite
-							if int(bestf["bites"]) <= 0:
-								bestf["life"] = 0.0
-					else:
-						bestf["life"] = 0.0  # stolen!
-					if a.position.distance_to(w.player.position) < 160.0:
-						w.fx.text(a.position + Vector2(0, -a.r * 2.0), "STOLEN", Pal.c("red", 3))
+				if to4.length() < a.r + 4.0:
+					# a scavenger stops and tears off bites until the piece is gone
+					dir *= 0.1
+					a.eat_t += 0.2
+					if a.eat_t > 0.8:
+						a.eat_t = 0.0
+						w.take_food(bestf)
+						if float(bestf["life"]) <= 0.0 and a.position.distance_to(w.player.position) < 160.0:
+							w.fx.text(a.position + Vector2(0, -a.r * 2.0), "STOLEN", Pal.c("red", 3))
 			else:
 				dir = a.wander * 0.45
 		_:

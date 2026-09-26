@@ -8,10 +8,7 @@ var rings: Array = []  # {p, r0, r1, t, dur, c}
 var cones: Array = []  # {p, dir, len, arc, t, dur, c}
 var texts: Array = []  # {p, s, t, dur, c, big}
 var marks: Array = []  # {p, r, t, dur, c} telegraph circles
-var chew_on := false  # the chewing ring over a carcass
-var chew_p := Vector2.ZERO
-var chew_frac := 0.0
-var chew_icon: Texture2D = null  # what's being eaten, shown inside the ring
+var stars: Array = []  # {p, t, dur, c} four-point twinkles (legendary and healing food)
 var slashes: Array = []  # {p, dir, r, t, dur, c, flip} crescent swipes
 var font: Font
 
@@ -42,6 +39,15 @@ func slash(p: Vector2, dir: Vector2, r: float, c: Color = Color.WHITE, dur: floa
 	slashes.append({"p": p, "dir": dir, "r": r, "t": 0.0, "dur": dur, "c": c, "flip": randf() < 0.5})
 
 
+## A four-point pixel star that grows and shrinks once: n of them scattered around p.
+func twinkle(p: Vector2, c: Color, n: int = 1) -> void:
+	for i in n:
+		var q := p + (Vector2(randf_range(-6, 6), randf_range(-5, 5)) if n > 1 else Vector2.ZERO)
+		stars.append({"p": q, "t": -randf() * 0.12 * i, "dur": randf_range(0.45, 0.6), "c": c})
+	if stars.size() > 120:
+		stars = stars.slice(stars.size() - 120)
+
+
 func mark(p: Vector2, r: float, dur: float, c: Color) -> void:
 	marks.append({"p": p, "r": r, "t": 0.0, "dur": dur, "c": c})
 
@@ -64,7 +70,7 @@ func step(dt: float) -> void:
 		v *= maxf(0.0, 1.0 - dt * 3.0)
 		b["v"] = v
 		b["p"] = (b["p"] as Vector2) + v * dt
-	for arr in [rings, cones, texts, marks, slashes]:
+	for arr in [rings, cones, texts, marks, slashes, stars]:
 		for i in range(arr.size() - 1, -1, -1):
 			arr[i]["t"] = float(arr[i]["t"]) + dt
 			if float(arr[i]["t"]) >= float(arr[i]["dur"]):
@@ -106,13 +112,18 @@ func _draw() -> void:
 			for j in 3:
 				var d := ln * (0.5 + j * 0.25)
 				draw_rect(Rect2(((cn["p"] as Vector2) + Vector2.from_angle(a) * d).floor(), Vector2(2, 2)), col3)
-	if chew_on:
-		var cp := chew_p.floor()
-		draw_circle(cp, 8.0, Color(Pal.INK, 0.55))
-		draw_arc(cp, 7.0, -PI * 0.5, -PI * 0.5 + TAU * clampf(chew_frac, 0.0, 1.0), 24, Pal.e("lemon"), 2.0)
-		if chew_icon:
-			var isz := chew_icon.get_size()
-			draw_texture(chew_icon, (cp - isz * 0.5).floor())
+	for st in stars:
+		var u := float(st["t"]) / float(st["dur"])
+		if u < 0.0:
+			continue
+		# arm length 0 -> 2 -> 0: a dot, a plus, a bigger plus, back
+		var arm := roundi(sin(u * PI) * 2.4)
+		var sp := (st["p"] as Vector2).floor()
+		var sc: Color = st["c"]
+		draw_rect(Rect2(sp, Vector2.ONE), Color.WHITE if arm >= 2 else sc)
+		for k in range(1, arm + 1):
+			for dv in [Vector2(k, 0), Vector2(-k, 0), Vector2(0, k), Vector2(0, -k)]:
+				draw_rect(Rect2(sp + dv, Vector2.ONE), sc)
 	for sl in slashes:
 		var u := float(sl["t"]) / float(sl["dur"])
 		var r := float(sl["r"])
