@@ -1,17 +1,14 @@
 class_name Anatomy
 extends RefCounted
-## The creature art facade. Puddle (a look with "darwin") is hand-drawn flat pixel art
-## composed from parts (DarwinArt, Everything-is-Crab's Darwin style); animals are Genomes
-## drawn by the Sculptor ("living clay"), turned into genomes here.
-## frames(look) -> {"idle": [4 tex], "walk": [6 tex], "bite": [1 tex], "size": Vector2i, "foot": Vector2}
+## The creature art facade. Every creature is hand-drawn flat pixel art in Everything is
+## Crab's Darwin style: Puddle (a look with "darwin") is composed from parts by DarwinArt;
+## animals and bosses (a look with "species") are DarwinAnimals sprites.
+## frames(look) -> {"idle": [4 tex], "walk": [4 tex], "bite": [1 tex], "size": Vector2i, "foot": Vector2}
 
 
-static func genome(look: Dictionary) -> Dictionary:
-	if look.has("gen"):
-		return look["gen"]
-	if look.has("species"):
-		return Genome.of_species(String(look["species"]))
-	return Genome.from_look(look)
+static func _species(look: Dictionary) -> String:
+	var id := String(look.get("species", ""))
+	return id if DarwinAnimals.ALL.has(id) else ""
 
 
 static func is_darwin(look: Dictionary) -> bool:
@@ -19,27 +16,26 @@ static func is_darwin(look: Dictionary) -> bool:
 
 
 static func frames(look: Dictionary) -> Dictionary:
-	if is_darwin(look):
-		return DarwinArt.frames(look)
-	return Sculptor.frames(genome(look))
+	var id := _species(look)
+	if id != "":
+		return DarwinArt.species_frames(id)
+	return DarwinArt.frames(look)
 
 
 ## One still pose for UI: {"tex", "size", "foot"}.
 static func single(look: Dictionary) -> Dictionary:
-	if is_darwin(look):
-		var fr := DarwinArt.frames(look)
-		return {"tex": fr["idle"][0], "size": fr["size"], "foot": fr["foot"]}
-	return Sculptor.single(genome(look))
+	var fr := frames(look)
+	return {"tex": fr["idle"][0], "size": fr["size"], "foot": fr["foot"]}
 
 
 static func key_of(look: Dictionary) -> String:
-	if is_darwin(look):
-		return "d" + JSON.stringify(DarwinArt.spec_of(look)).md5_text()
-	return Genome.key(genome(look))
+	var id := _species(look)
+	if id != "":
+		return "s:" + id
+	return "d" + JSON.stringify(DarwinArt.spec_of(look)).md5_text()
 
 
 static func clear_cache() -> void:
-	Sculptor.clear_cache()
 	DarwinArt.clear_cache()
 
 

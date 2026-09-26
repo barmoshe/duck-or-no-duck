@@ -62,31 +62,38 @@ func _logic() -> void:
 		check(not Evolutions.get_def(id).get("starter", false) or r.has(id), "no unowned starters offered")
 	var fruit := Offers.roll(r, rng, "boss")
 	check(fruit.size() == 3 and Evolutions.get_def(fruit[0])["type"] == "branch", "Boss Fruit offers Branching Evolutions")
-	# living clay: every evolution visibly changes the body, and caps keep it readable
+	# Darwin-style art: evolutions that add a part show on Puddle, stacks stay readable
 	var base_run := Run.new("pioneer", 0, rng)
-	var base_key := Genome.key(base_run.look["gen"])
+	var base_key := Anatomy.key_of(base_run.look)
 	var same: Array = []
 	for id in Evolutions.ALL:
-		if Evolutions.get_def(id).get("starter", false):
+		var ev := Evolutions.get_def(id)
+		if ev.get("starter", false) or (ev.get("look", {}) as Dictionary).is_empty():
 			continue
-		if Genome.key(base_run.preview(id)["gen"]) == base_key:
+		if Anatomy.key_of(base_run.preview(id)) == base_key:
 			same.append(id)
-	check(same.is_empty(), "every evolution changes Puddle's body (unchanged: %s)" % [same])
+	check(same.is_empty(), "every evolution with a look shows on Puddle (unchanged: %s)" % [same])
 	var big := Run.new("pioneer", 0, rng)
 	for i in 3:
 		for id in ["more_eyes", "mutant_luck", "long_legs", "horns", "swan_neck", "heron_stilts", "colossal", "big_brain", "branch_tentacles", "tentacle_lash"]:
 			big.take(id)
-	var bg: Dictionary = big.look["gen"]
-	check(int(bg["eye_n"]) <= 6 and int(bg["crown_n"]) <= 2 and int(bg["arm_n"]) <= 4 and float(bg["leg_len"]) <= float(bg["size"]) * 1.4 + 0.01, "readability caps hold (eyes %d, horns %d, arms %d)" % [bg["eye_n"], bg["crown_n"], bg["arm_n"]])
-	var fr_big := Sculptor.frames(bg)
-	check((fr_big["walk"] as Array).size() == Sculptor.WALK_N and (fr_big["idle"] as Array).size() == Sculptor.IDLE_N, "a creature has idle, walk and bite frames")
-	var mid := Genome.lerp_g(base_run.look["gen"], bg, 0.5)
-	check(float(mid["len"]) > float(base_run.look["gen"]["len"]) and float(mid["len"]) < float(bg["len"]), "genomes blend for the evolve animation")
+	check(int(big.look["eye_n"]) <= 6, "eyes stack up to 6 (%d)" % int(big.look["eye_n"]))
+	var fr_big := Anatomy.frames(big.look)
+	check((fr_big["idle"] as Array).size() == 4 and (fr_big["walk"] as Array).size() == 4 and (fr_big["bite"] as Array).size() == 1, "Puddle has idle, walk and bite frames")
 	var t_r := Time.get_ticks_usec()
-	Sculptor.clear_cache()
-	Sculptor.frames(Species.look_of("fox") if false else Genome.of_species("fox"))
+	Anatomy.clear_cache()
+	var no_art: Array = []
+	for sid in Species.ALL:
+		var sf := Anatomy.frames(Species.look_of(sid))
+		var sz: Vector2i = sf["size"]
+		var ft: Vector2 = sf["foot"]
+		var ok_fr := (sf["idle"] as Array).size() == 4 and (sf["walk"] as Array).size() == 4 and (sf["bite"] as Array).size() == 1
+		ok_fr = ok_fr and (sf["idle"][0] as Texture2D).get_image().get_used_rect().size.x > 4
+		if not ok_fr or ft.x < 0 or ft.y > sz.y or not DarwinAnimals.ALL.has(sid):
+			no_art.append(sid)
+	check(no_art.is_empty(), "every species and boss has a hand-drawn sprite with all frames (bad: %s)" % [no_art])
 	var ms := (Time.get_ticks_usec() - t_r) / 1000.0
-	check(ms < 120.0, "rendering a creature's full frame set takes %.0f ms" % ms)
+	check(ms < 400.0, "drawing every species takes %.0f ms" % ms)
 	# the evolution tree: unlocks, bans, levels, branches
 	var tr := Run.new("pioneer", 0, rng)
 	check(not Offers.eligible(tr, "glide", "level"), "Glide starts locked")

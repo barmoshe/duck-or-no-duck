@@ -375,9 +375,11 @@ func _look() -> void:
 			look["legs"] = "stubby"
 	elif n >= MOCHI_AT:
 		look["body"] = "mochi"
-	# the living-clay body the Sculptor draws (continuous: every pick shows)
-	look["gen"] = Genome.of_run(self)
-	# Puddle itself is drawn by hand in Darwin's style (DarwinArt), from its parts
+	# stacking eyes: More Eyes adds a pair per level, Mutant Luck one, Trickster a few
+	var eye_n := 4 if String(look.get("eyes", "")) == "many" else 2
+	eye_n += 2 * rank("more_eyes") + rank("mutant_luck") + int(float(affinity_points().get("trickster", 0)) * 0.25)
+	look["eye_n"] = clampi(eye_n, 1, 6)
+	# Puddle is drawn by hand in Darwin's style (DarwinArt), from its parts
 	look["darwin"] = true
 
 

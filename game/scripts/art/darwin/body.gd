@@ -13,6 +13,8 @@ const KEY := {
 	"h": "tan", "H": "leather", "d": "bark", "D": "plum", "g": "leaf", "G": "grass", "j": "pine", "y": "lemon",
 	"Y": "amber", "o": "orange", "O": "rust", "r": "red", "R": "wine", "p": "salmon", "P": "rose", "v": "grape",
 	"s": "mist", "S": "slate", "l": "steel", "t": "cyan", "q": "peach", "n": "sand", "m": "night", "u": "sky",
+	# animals
+	"C": "clay", "a": "cocoa", "x": "dusk", "T": "sea", "E": "fern", "A": "sprout",
 }
 
 ## The body. Anchors: top (between the horns), face (mouth), eye_l / eye_r, back (the
@@ -94,15 +96,16 @@ static func spec_of(look: Dictionary) -> Dictionary:
 		var m: Dictionary = SLOT_PART[slot]
 		if m.has(v) and not m[v] in parts:
 			parts.append(m[v])
-	var g: Dictionary = look.get("gen", {})
 	return {
-		"parts": parts, "eyes": String(look.get("eyes", "cute")), "eye_n": int(g.get("eye_n", 2)),
+		"parts": parts, "eyes": String(look.get("eyes", "cute")), "eye_n": int(look.get("eye_n", 2)),
 		"mouth": String(look.get("mouth", "none")), "hide": String(look.get("hide", "none")),
 		"duck": String(look.get("body", "")) == "duck", "hood": String(look.get("crown", "")) == "crest_duck",
+		"tall": 3 if String(look.get("body", "")) == "bird" else 0,
 	}
 
 
 const SQUASH_ROW := 11
+const NECK_ROW := 7
 
 
 ## One frame of Puddle. pose: {"squash": -1|0|1, "lift": px, "step": 0..3, "flap": 0|1,
@@ -114,9 +117,13 @@ static func compose_spec(sp: Dictionary, pose: Dictionary) -> Image:
 		rows.remove_at(SQUASH_ROW)
 	elif sq < 0:
 		rows.insert(SQUASH_ROW, rows[SQUASH_ROW])
+	# a long neck (Swan Neck): the rows under the collar repeat, the head rises
+	var tall := int(sp.get("tall", 0))
+	for i in tall:
+		rows.insert(NECK_ROW, rows[NECK_ROW])
 	var img := Image.create_empty(CANVAS.x, CANVAS.y, false, Image.FORMAT_RGBA8)
 	var lift := int(pose.get("lift", 0))
-	var at := BODY_AT + Vector2i(0, sq - lift)
+	var at := BODY_AT + Vector2i(0, sq - lift - tall)
 	var anchors: Dictionary = BODY["anchors"]
 	var parts: Array = sp["parts"]
 	var duck: bool = sp["duck"]
@@ -124,6 +131,8 @@ static func compose_spec(sp: Dictionary, pose: Dictionary) -> Image:
 	var place := func(name: String) -> Vector2i:
 		var a: Vector2i = anchors[name]
 		var p := at + a
+		if a.y >= NECK_ROW:
+			p.y += tall
 		if a.y >= SQUASH_ROW:
 			p.y -= sq  # below the removed/added row: back where it was
 		return p
@@ -262,7 +271,7 @@ const BODY_AT := Vector2i(14, 16)
 
 ## Test/preview helper: Puddle with a list of part ids.
 static func compose(parts: Array, opts: Dictionary) -> Image:
-	var sp := {"parts": parts, "eyes": String(opts.get("eyes", "cute")), "eye_n": int(opts.get("eye_n", 2)),
+	var sp := {"tall": int(opts.get("tall", 0)), "parts": parts, "eyes": String(opts.get("eyes", "cute")), "eye_n": int(opts.get("eye_n", 2)),
 		"mouth": String(opts.get("mouth", "none")), "hide": String(opts.get("hide", "none")), "duck": opts.get("duck", false),
 		"hood": opts.get("hood", false)}
 	return compose_spec(sp, opts)
@@ -298,3 +307,80 @@ static func frames(look: Dictionary) -> Dictionary:
 	out["foot"] = Vector2(BODY_AT.x + 8, ground)
 	_cache[key] = out
 	return out
+
+
+# ------------------------------------------------------------------ animals
+## Animation frames for an animal or boss (DarwinAnimals.ALL[id]), the same contract as
+## frames(): idle 4 (rest, squash, rest, blink), walk 4 (legs step, hop, alt body), bite 1.
+static func species_frames(id: String) -> Dictionary:
+	var key := "s:" + id
+	if _cache.has(key):
+		return _cache[key]
+	var d: Dictionary = DarwinAnimals.ALL.get(id, DarwinAnimals.ALL["beetle"])
+	var rows: Array = d["rows"]
+	var w := 0
+	for r in rows:
+		w = maxi(w, String(r).length())
+	var legs: Array = d["legs"]
+	var la: Vector2i = d["legs_at"]
+	var bottom := rows.size()
+	for f in legs:
+		bottom = maxi(bottom, la.y + (f as Array).size())
+		for r in f:
+			w = maxi(w, la.x + String(r).length())
+	var canvas := Vector2i(w + 4, bottom + 5)
+	var at := Vector2i(1, 4)
+	var poses := [
+		{"a": "idle"}, {"a": "idle", "squash": 1}, {"a": "idle"}, {"a": "idle", "blink": true},
+		{"a": "walk", "step": 0}, {"a": "walk", "step": 1, "lift": 1, "alt": true},
+		{"a": "walk", "step": 0, "squash": 1}, {"a": "walk", "step": 1, "lift": 1, "alt": true},
+		{"a": "bite", "open": true},
+	]
+	var zoom := int(d.get("zoom", 1))
+	var out := {"idle": [], "walk": [], "bite": [], "size": canvas * zoom}
+	for ps in poses:
+		var img := compose_species(d, ps, canvas, at)
+		if zoom > 1:
+			img.resize(canvas.x * zoom, canvas.y * zoom, Image.INTERPOLATE_NEAREST)
+		(out[ps["a"]] as Array).append(ImageTexture.create_from_image(img))
+	out["foot"] = Vector2(at.x + w * 0.5, at.y + bottom) * zoom
+	_cache[key] = out
+	return out
+
+
+static func compose_species(d: Dictionary, pose: Dictionary, canvas: Vector2i, at: Vector2i) -> Image:
+	var rows: Array = d["rows"]
+	if pose.get("alt", false) and not (d["alt"] as Array).is_empty():
+		rows = d["alt"]
+	rows = rows.duplicate()
+	var sr := int(d["squash"])
+	var sq := int(pose.get("squash", 0))
+	if sq > 0 and sr > 0 and sr < rows.size():
+		rows.remove_at(sr)
+	else:
+		sq = 0
+	var lift := int(pose.get("lift", 0))
+	var lunge := 1 if pose.get("open", false) else 0
+	var img := Image.create_empty(canvas.x, canvas.y, false, Image.FORMAT_RGBA8)
+	var remap: Dictionary = d["recolor"]
+	var legs: Array = d["legs"]
+	if not legs.is_empty():
+		var lf: Array = legs[int(pose.get("step", 0)) % legs.size()]
+		_stamp_recolor(img, lf, at + (d["legs_at"] as Vector2i) - Vector2i(0, lift), remap)
+	var bat := at + Vector2i(lunge, sq - lift)
+	_stamp_recolor(img, rows, bat, remap)
+	var fix := func(p: Vector2i) -> Vector2i:
+		var q := bat + p
+		if sq > 0 and p.y >= sr:
+			q.y -= sq
+		return q
+	if pose.get("blink", false):
+		for e in d["eyes"]:
+			var q: Vector2i = fix.call(e)
+			img.set_pixel(q.x, q.y, img.get_pixel(q.x - 1, q.y))
+	if pose.get("open", false):
+		var m: Vector2i = fix.call(d["mouth"])
+		if m.x >= 0 and m.y + 1 < canvas.y and m.x < canvas.x:
+			img.set_pixel(m.x, m.y, col("R"))
+			img.set_pixel(m.x, m.y + 1, col("k"))
+	return img

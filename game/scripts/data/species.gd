@@ -104,7 +104,7 @@ const RIG := {
 }
 
 
-## An animal's look; "species" makes the art use its hand-tuned genome (Genome.of_species).
+## An animal's look; "species" picks its hand-drawn sprite (DarwinAnimals).
 static func look_of(id: String) -> Dictionary:
 	var lk := look_of_raw(id)
 	lk["species"] = id

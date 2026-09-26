@@ -129,4 +129,7 @@ Bar rejected the sculpted v4 look ("looks terrible") and sent a screenshot of Cr
 - **Stacking:** extra eyes add dots, up to 6. Patterns sprinkle darker pixels, and Convergent recolors the body as a mallard.
 - **Animation:** poses are row squash/stretch, a lift, a 4-step leg cycle, wing flap, blink and an open mouth. Every pose shares one 46×44 canvas.
 - **Evolving:** a pick flickers old/new, like Crab's mutation pop.
-- **Scope:** the v4 Genome/Sculptor still draws animals and bosses.
+- **Animals and bosses (v5b):**
+  - Hand-drawn side-view sprites in the same language (`tools/art/darwin_animals.py` → `darwin/animals.gd`): a body, a two-frame leg strip, an optional alt body for the walk (a tail flick, a wing beat), and eyes that blink and a mouth that opens on the bite.
+  - Bosses are drawn at about 38 px; the Great Mallard is shown at 2× as a giant.
+  - The v4 Genome/Sculptor is retired. Puddle's stacked eyes are counted in `Run._look` (`eye_n`), and Swan Neck stretches Puddle's neck.

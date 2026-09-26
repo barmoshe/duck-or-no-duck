@@ -1,7 +1,7 @@
 class_name Portrait
 extends RefCounted
 ## Evolution card portraits: the evolution shown on YOUR creature, close up. The body is
-## the Sculptor's render of your genome after taking the card (Run.preview), cropped
+## Puddle drawn after taking the card (Run.preview), cropped
 ## around the zone it changes (a bill crops to the face, legs to the feet, a passive that
 ## reshapes you shows your whole body); attacks, ultimates and moves show their
 ## hand-drawn icon. Everything sits on a vignette in the affinity's color.
@@ -74,48 +74,13 @@ const DARWIN_ZONE := {"face": "face", "crown": "top", "back": "back", "tail": "t
 
 
 static func _close_up(img: Image, look: Dictionary, zone: String) -> void:
-	if Anatomy.is_darwin(look):
-		var dimg := (DarwinArt.frames(look)["idle"][0] as Texture2D).get_image()
-		var used := dimg.get_used_rect()
-		var dc := Vector2(used.get_center())
-		var dsc := 2
-		if DARWIN_ZONE.has(zone):
-			dc = Vector2(DarwinArt.BODY_AT + (DarwinArt.BODY["anchors"][DARWIN_ZONE[zone]] as Vector2i))
-			dc = dc.lerp(Vector2(used.get_center()), 0.35)
-		_blit(img, dimg, dc, dsc)
-		return
-	var g := Anatomy.genome(look)
-	var fr := Sculptor.single(g)
-	var cr := (fr["tex"] as Texture2D).get_image()
-	var origin: Vector2 = fr["foot"]
-	var rg := Sculptor.rig(g, {"anim": "idle", "i": 0})
-	var hd: Vector2 = rg["head"]
-	var bd: Vector2 = rg["body"]
-	var fr_r := float(rg["face_r"])
-	var ln := float(g["len"])
-	var hh := float(g["h"])
-	var c := bd
-	var sc := 3
-	match zone:
-		"face":
-			c = hd + Vector2(fr_r * 0.4, 0.0)
-		"crown":
-			c = hd + Vector2(0.0, -fr_r * 0.9)
-		"back":
-			c = bd + Vector2(-ln * 0.1, -hh * 0.45)
-		"tail":
-			c = bd + Vector2(-ln * 0.55, -hh * 0.1)
-		"legs":
-			c = Vector2(bd.x, -float(g["leg_len"]) * 0.5 - 1.0)
-		"arms":
-			c = bd + Vector2(ln * 0.45, hh * 0.35)
-		_:
-			sc = 2
-			var used := cr.get_used_rect()
-			c = Vector2(used.get_center()) - origin
-			if used.size.x * 2 > W or used.size.y * 2 > H:
-				sc = 1
-	_blit(img, cr, c + origin, sc)
+	var dimg := (Anatomy.frames(look)["idle"][0] as Texture2D).get_image()
+	var used := dimg.get_used_rect()
+	var dc := Vector2(used.get_center())
+	if DARWIN_ZONE.has(zone) and Anatomy.is_darwin(look):
+		dc = Vector2(DarwinArt.BODY_AT + (DarwinArt.BODY["anchors"][DARWIN_ZONE[zone]] as Vector2i))
+		dc = dc.lerp(Vector2(used.get_center()), 0.35)
+	_blit(img, dimg, dc, 2)
 
 
 ## Crops a window of cr around cp, scales it by sc and centers it on img with a shadow.
