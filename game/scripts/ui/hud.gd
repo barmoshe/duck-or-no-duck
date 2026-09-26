@@ -143,6 +143,10 @@ func _draw() -> void:
 		Ui.text(self, Vector2(s.get_center().x, s.end.y - 30), "HIDING IN A BURROW", Pal.c("brown", 4), Ui.small(), 8, 1)
 	if world.dizzy > 0.0:
 		Ui.text(self, Vector2(s.get_center().x, s.end.y - 38), "DIZZY!", Pal.c("purple", 4), Ui.small(), 8, 1)
+	if world.trip > 0.0:
+		Ui.text(self, Vector2(s.get_center().x, s.end.y - 46), "SEEING THINGS", Pal.c("pink", 4), Ui.small(), 8, 1)
+	if world.deaf > 0.0:
+		Ui.text(self, Vector2(s.get_center().x, s.end.y - 54), "EARS RINGING", Pal.c("snow", 4), Ui.small(), 8, 1)
 
 	# --- attacks: framed icon slots, bottom left, dark while cooling down
 	var ss := 20.0

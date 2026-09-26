@@ -39,11 +39,18 @@ var sources: Array = []  # fruit trees, bushes, cacti: {n, p, o, stock, max, t, 
 var pools: Array = []  # fish pools: {n, p, stock, t, anim}
 var tips := {}  # one-time food tips already shown
 var bite_cd := 0.0  # seconds to the next bite; the first bite on reaching food is instant
+var chew: Dictionary = {}  # the piece you are eating: one at a time, until it's gone
 var bite_show := 0.0  # the bite pose lingers this long after a bite
-var pouch: Array = []  # Cheek Pouch: food stored in your cheeks, bitten along with the rest
+var pouch: Array = []  # Cheek Pouch: food stored in your cheeks, eaten when none is in reach
 var rum_t := 0.0  # Ruminant: seconds of calm chewing
 var rum_cd := 0.0
-var shrooms: Array = []  # {n, p, fx, good}
+var shrooms: Array = []  # {n, p, look, seen}
+var shroom_fx: Array = []  # look -> effect (Pois.SHROOMS index), dealt each run
+var shroom_known := {}  # looks you have eaten or named this run
+var hot_t := 0.0  # Medicinal: seconds of healing left
+var hot_rate := 0.0
+var trip := 0.0  # Hallucinogen: seconds of swirling colors
+var deaf := 0.0  # Deafening: seconds of muffled sound
 var burrows: Array = []  # {n, p}
 var pois: Array = []  # {n, mark, p, kind, used}
 var combat: Combat
@@ -134,7 +141,7 @@ func build(seed_value: int, r: Run) -> void:
 	cam.position = player.position
 	for i in 20:
 		_spawn_one(90.0, 420.0)
-	for i in 16:
+	for i in 6:
 		_spawn_shroom()
 	next_boss = 0
 	last_biome = ""
@@ -156,11 +163,18 @@ func clear() -> void:
 	pools.clear()
 	tips.clear()
 	pouch.clear()
+	chew = {}
 	bite_cd = 0.0
 	bite_show = 0.0
 	rum_t = 0.0
 	rum_cd = 0.0
 	shrooms.clear()
+	shroom_fx = Pois.deal_shrooms(rng)
+	shroom_known.clear()
+	hot_t = 0.0
+	trip = 0.0
+	deaf = 0.0
+	Sfx.muffle = 0.0
 	burrows.clear()
 	pois.clear()
 	obst_grid.clear()
@@ -307,19 +321,25 @@ func _build_burrows() -> void:
 		burrows.append({"n": s, "p": p})
 
 
+## Mushrooms sprout on grass and snow, a few at a time: they are a choice, not a meal.
 func _spawn_shroom() -> void:
 	for k in 10:
 		var p := map.random_point(rng, player.position if rng.randf() < 0.5 else Vector2(MapGen.SIZE, MapGen.SIZE) * 0.5, 60.0, 1100.0, false)
 		if p.x < 0 or not map.biome_at(p) in [0, 3]:
 			continue
-		var idx := rng.randi() % Pois.SHROOMS.size()
-		var good: bool = Pois.SHROOMS[idx][1]
-		var s := Sprite2D.new()
-		s.texture = Props.tex(["shroom_red", "shroom_brown", "shroom_blue", "shroom_gold"][rng.randi() % 4])
-		s.position = p.floor()
-		food_layer.add_child(s)
-		shrooms.append({"n": s, "p": p, "i": idx, "good": good})
+		_place_shroom(p)
 		return
+
+
+func _place_shroom(p: Vector2) -> Dictionary:
+	var look := rng.randi() % Pois.SHROOM_LOOKS.size()
+	var s := Sprite2D.new()
+	s.texture = Props.tex(Pois.shroom_sprite(look))
+	s.position = p.floor()
+	food_layer.add_child(s)
+	var sm := {"n": s, "p": p, "look": look, "seen": false}
+	shrooms.append(sm)
+	return sm
 
 
 # ------------------------------------------------------------------ player
@@ -366,6 +386,9 @@ func step(dt: float) -> void:
 	_schedule()
 	_daylight()
 	dizzy = maxf(0.0, dizzy - dt)
+	trip = maxf(0.0, trip - dt)
+	deaf = maxf(0.0, deaf - dt)
+	Sfx.muffle = -18.0 if deaf > 0.0 else 0.0
 	player.desired = input_dir if dizzy <= 0.0 else -input_dir
 	_hide_in_burrow(dt)
 	_rebuild_grid()
@@ -394,8 +417,8 @@ func step(dt: float) -> void:
 		_spawner()
 	shroom_t -= dt
 	if shroom_t <= 0.0:
-		shroom_t = 8.0
-		if shrooms.size() < 16:
+		shroom_t = 15.0
+		if shrooms.size() < 8:
 			_spawn_shroom()
 	_poi_check()
 	weather.step(dt)
@@ -422,6 +445,10 @@ func _daylight() -> void:
 		c = c.lerp(DUSK_TINT, sin((ph - 0.5) / 0.16 * PI) * 0.45)
 	elif ph > 0.9:
 		c = c.lerp(Color(1.0, 0.85, 0.75), sin((ph - 0.9) / 0.1 * PI) * 0.35)
+	if trip > 0.0:
+		# Hallucinogen: the world swirls through colors, fading in and out
+		var amt := minf(1.0, minf(trip, 10.0 - trip + 0.5)) * 0.55
+		c = c.lerp(c * Color.from_hsv(fmod(run.time * 0.35, 1.0), 0.8, 1.0), amt)
 	tint.color = c
 	var n := run.is_night()
 	if n != was_night:
@@ -817,22 +844,91 @@ func _pickups(dt: float) -> void:
 			n.queue_free()
 			foods.remove_at(i)
 	_feed(dt)
-	for i in range(shrooms.size() - 1, -1, -1):
-		var sm: Dictionary = shrooms[i]
-		var sn: Sprite2D = sm["n"]
-		var ident := float(run.stats["identify"]) > 0.0
-		if ident:
-			sn.modulate = Color(0.7, 1.3, 0.7) if sm["good"] else Color(1.3, 0.6, 0.6)
-		if (sm["p"] as Vector2).distance_to(pp) < player.r + 5.0 and not player.under:
-			if ident and not sm["good"]:
-				continue  # More Eyes: you know better
-			var e: Array = Pois.SHROOMS[int(sm["i"])]
-			fx.text(pp + Vector2(0, -player.r * 2.5), String(e[0]).to_upper(), Pal.c("green", 4) if e[1] else Pal.c("red", 3))
-			apply_fx(e[2])
-			_gain_xp(3.0 * (1.0 + run.minute() * 0.05) * (1.0 + float(run.stats["shroom_xp"]) / 100.0))
-			Sfx.play("slurp", 0.8)
-			sn.queue_free()
-			shrooms.remove_at(i)
+	_shrooms_near()
+
+
+# ------------------------------------------------------------------ mushrooms
+## The effect a mushroom's look has this run: [name, kind, fx].
+func shroom_effect(sm: Dictionary) -> Array:
+	return Pois.SHROOMS[int(shroom_fx[int(sm["look"])])]
+
+
+## Label colors: yellow for good, sky blue for a mixed blessing, salmon for bad.
+static func shroom_color(kind: String) -> Color:
+	match kind:
+		"good":
+			return Pal.e("lemon")
+		"side":
+			return Pal.e("sky")
+	return Pal.e("salmon")
+
+
+## The mushroom close enough to eat, or {}.
+func shroom_in_reach() -> Dictionary:
+	var best := {}
+	if not valid(player) or player.under:
+		return best
+	var bd := player.r + 10.0
+	for sm in shrooms:
+		var d := (sm["p"] as Vector2).distance_to(player.position)
+		if d < bd:
+			bd = d
+			best = sm
+	return best
+
+
+## Mushrooms wait to be eaten. The first time you come near one you may name it on
+## sight (Senses, the identify stat); a look you've named or eaten shows its effect over
+## every mushroom of that look for the rest of the run.
+func _shrooms_near() -> void:
+	fx.tags.clear()
+	if not valid(player) or player.under:
+		return
+	var pp := player.position
+	var chance := Pois.identify_chance(float(run.stats["identify"]))
+	var near := shroom_in_reach()
+	# the one in reach first, so its label wins a crowded spot
+	var order := shrooms.duplicate()
+	if not near.is_empty():
+		order.erase(near)
+		order.push_front(near)
+	for sm in order:
+		if (sm["p"] as Vector2).distance_to(pp) > 70.0:
+			continue
+		var look := int(sm["look"])
+		if not sm["seen"]:
+			sm["seen"] = true
+			if not shroom_known.has(look) and chance > 0.0 and rng.randf() < chance:
+				shroom_known[look] = true
+		var at := (sm["p"] as Vector2) + Vector2(0, -16)
+		if shroom_known.has(look):
+			var e := shroom_effect(sm)
+			fx.tags.append({"p": at, "s": String(e[0]).to_upper(), "c": shroom_color(String(e[1]))})
+		elif is_same(sm, near):
+			fx.tags.append({"p": at, "s": "???", "c": Pal.e("white")})
+	if not near.is_empty():
+		_tip("shroom", "Tap EAT for the mushroom. Each look does the same thing all run")
+
+
+## Eat the mushroom in reach: a little Progress, then its effect, and from now on you
+## know what that look does.
+func eat_shroom() -> bool:
+	var sm := shroom_in_reach()
+	if sm.is_empty():
+		return false
+	var e := shroom_effect(sm)
+	shroom_known[int(sm["look"])] = true
+	var pp := player.position
+	fx.text(pp + Vector2(0, -player.r * 2.5), String(e[0]).to_upper() + "!", shroom_color(String(e[1])), true)
+	fx.burst(sm["p"], Pal.e("white"), 5, 35.0, 1.0, 0.35)
+	(sm["n"] as Sprite2D).queue_free()
+	shrooms.erase(sm)
+	bite_show = 0.25
+	player.eating = true
+	Sfx.play("slurp", 0.8)
+	_gain_xp(run.xp_need() * Pois.SHROOM_PROGRESS * (1.0 + float(run.stats["shroom_xp"]) / 100.0))
+	apply_fx(e[2])
+	return true
 
 
 # ------------------------------------------------------------------ eating
@@ -863,11 +959,13 @@ func in_reach() -> Array:
 	return out
 
 
-## Eating, as Crab does it: walk over food and you eat it. Every piece in your Feeding
-## Distance is bitten at once, one bite per bite time (Feeding Speed); the first bite on
-## reaching food is instant because the clock runs down while you're not eating. A piece
-## takes four bites and shrinks with each. Cheek Pouch stores food from further out and
-## bites it along with the rest, so you can keep moving.
+## Eating: walk over food and you eat it, one piece at a time, one bite per bite time
+## (Feeding Speed). You finish the piece you started before the next one (the nearest in
+## your Feeding Distance); the first bite on reaching food is instant because the clock
+## runs down while you're not eating. A piece takes four bites and shrinks with each.
+## Cheek Pouch stores food from further out and eats it when nothing is in reach, so you
+## can keep moving. (Crab bites every piece in reach at once; we don't, so a pile of meat
+## is a meal you stay for, not a single gulp.)
 func _feed(dt: float) -> void:
 	bite_cd = maxf(0.0, bite_cd - dt)
 	bite_show = maxf(0.0, bite_show - dt)
@@ -898,51 +996,59 @@ func _feed(dt: float) -> void:
 			_tip("pouch", "Cheek Pouch stores food nearby and eats it on the move")
 	if bite_cd > 0.0:
 		return
-	var plate := in_reach()
-	if plate.is_empty() and pouch.is_empty():
+	var f := _next_bite()
+	if f.is_empty():
+		chew = {}
 		return
+	chew = f
 	bite_cd = Foods.bite_time(float(run.stats["feed"]))
 	bite_show = minf(0.25, bite_cd * 0.7)
 	player.eating = true
-	_tip("eat", "Walk over food to eat it: everything in reach, four bites a piece")
-	var gain := 0.0
-	var healed := 0.0
-	var best := -1
-	var type := ""
-	for f in plate:
-		var r := _bite(f)
-		gain += float(r["xp"])
-		healed += float(r["hp"])
-		type = String(f["type"]) if type == "" else type
-		if int(f["bites"]) <= 0 and int(f["rar"]) > best:
-			best = int(f["rar"])
-			type = String(f["type"])
+	_tip("eat", "Walk over food to eat it: one piece at a time, four bites a piece")
+	var cheek := not pouch.is_empty() and is_same(pouch[0], f)
+	var r := _bite(f)
+	var done := int(f["bites"]) <= 0
+	var stage := Props.tex(Foods.sprite_name(String(f["type"]), int(f["rar"]), Foods.BITES - int(f["bites"])))
+	if cheek:
+		if done:
+			pouch.remove_at(0)
+		else:
+			f["icon"] = stage
+	else:
 		fx.burst((f["n"] as Sprite2D).position + Vector2(0, -2), Pal.e(String(Foods.TYPE_COL.get(String(f["type"]), "white"))), 3, 35.0, 1.0, 0.3, 120.0)
-		if int(f["bites"]) <= 0:
+		if done:
 			var i := foods.find(f)
 			if i >= 0:
-				(f["n"] as Sprite2D).queue_free()
 				foods.remove_at(i)
+			(f["n"] as Sprite2D).queue_free()
 		else:
-			(f["n"] as Sprite2D).texture = Props.tex(Foods.sprite_name(String(f["type"]), int(f["rar"]), Foods.BITES - int(f["bites"])))
-	for i in range(pouch.size() - 1, -1, -1):
-		var pf: Dictionary = pouch[i]
-		var r2 := _bite(pf)
-		gain += float(r2["xp"])
-		healed += float(r2["hp"])
-		type = String(pf["type"]) if type == "" else type
-		if int(pf["bites"]) <= 0 and int(pf["rar"]) > best:
-			best = int(pf["rar"])
-			type = String(pf["type"])
-		if int(pf["bites"]) <= 0:
-			pouch.remove_at(i)
-		else:
-			pf["icon"] = Props.tex(Foods.sprite_name(String(pf["type"]), int(pf["rar"]), Foods.BITES - int(pf["bites"])))
-	_bite_feedback(gain, healed, best, type)
-	# everything in reach is gone: the finishing sparkle and sound
-	if in_reach().is_empty() and pouch.is_empty():
+			(f["n"] as Sprite2D).texture = stage
+	if done:
+		chew = {}
+	_bite_feedback(float(r["xp"]), float(r["hp"]), int(f["rar"]) if done else -1, String(f["type"]))
+	# nothing left to eat: the finishing sparkle and sound
+	if done and _next_bite().is_empty():
 		fx.twinkle(pp + Vector2(player.face * 7.0, -player.r * 1.4), Pal.e("white"), 3)
 		Sfx.play("pop", 1.6, -6.0)
+
+
+## The piece you bite next: the one you're eating while it's still in reach, else the
+## nearest piece in reach, else the first piece in your cheeks; {} when there's none.
+func _next_bite() -> Dictionary:
+	var plate := in_reach()
+	for f in plate:
+		if is_same(f, chew):
+			return f
+	var best := {}
+	var bd := INF
+	for f in plate:
+		var d := (f["p"] as Vector2).distance_to(player.position)
+		if d < bd:
+			bd = d
+			best = f
+	if best.is_empty() and not pouch.is_empty():
+		best = pouch[0]
+	return best
 
 
 ## One bite of a piece: its share of Progress (the last bite pays double) and, for
@@ -971,8 +1077,8 @@ func _bite(f: Dictionary) -> Dictionary:
 	return {"xp": xp, "hp": hp}
 
 
-## One number per bite over your head, however many pieces you bit; finishing a rare
-## piece (rar: the rarest one finished this bite, -1 for none) shouts its rarity.
+## One number per bite over your head; finishing a rare piece (rar: the rarity of the
+## piece this bite finished, -1 for none) shouts its rarity.
 func _bite_feedback(gain: float, healed: float, rar: int, type: String) -> void:
 	var head := player.position + Vector2(0, -player.r * 2.0)
 	var col := Pal.e(String(Foods.TYPE_COL.get(type, "white")))
@@ -1023,6 +1129,11 @@ func _gain_xp(v: float) -> void:
 
 
 func _regen(dt: float) -> void:
+	if hot_t > 0.0:
+		hot_t -= dt
+		player.hp = minf(player.max_hp, player.hp + hot_rate * dt)
+		if rng.randf() < dt * 6.0:
+			fx.twinkle(player.position + Vector2(rng.randf_range(-6, 6), -player.r * rng.randf_range(0.5, 2.0)), Pal.e("salmon"))
 	var reg := float(run.stats["regen"])
 	if player.since_hurt > 3.0 and reg > 0.0:
 		player.hp = minf(player.max_hp, player.hp + reg * dt)
@@ -1057,6 +1168,32 @@ func apply_fx(e: Dictionary) -> void:
 		run.mutagen += int(e["mutagen"])
 	if e.has("dizzy"):
 		dizzy = float(e["dizzy"])
+	if e.has("hot"):
+		var secs := float(e.get("secs", 4.0))
+		hot_t = secs
+		hot_rate = p.max_hp * float(e["hot"]) / secs
+	if e.has("poison"):
+		# a share of your Max HP per second, for 4 seconds
+		p.poison = maxf(p.poison if p.poison_t > 0.0 else 0.0, p.max_hp * float(e["poison"]))
+		p.poison_t = 4.0
+		p.hit_flash(Pal.c("purple", 3))
+		fx.burst(p.position + Vector2(0, -p.r), Pal.c("purple", 3), 8, 40.0, 1.0, 0.5)
+	if e.has("random_buff"):
+		var k := String(["physical", "ability", "armor", "speed"][rng.randi() % 4])
+		var v := float(e["random_buff"]) * (0.5 if k == "speed" else 1.0)
+		run.buff(k, v, float(e.get("secs", 30.0)))
+		sync_player()
+		fx.text(p.position + Vector2(0, -p.r * 2.5 - 10), "+%d %s" % [roundi(v), k.to_upper()], Pal.c("green", 4))
+	if e.has("refresh"):
+		combat.move_cd = 0.0
+		combat.ult_cd = 0.0
+		for id in combat.cds:
+			combat.cds[id] = 0.0
+		fx.ring(p.position + Vector2(0, -p.r), 4.0, 26.0, 0.4, Pal.e("cyan"))
+	if e.has("trip"):
+		trip = float(e["trip"])
+	if e.has("deaf"):
+		deaf = float(e["deaf"])
 	if e.has("affinity"):
 		run.bonus("aff_" + String(e["affinity"]), 3.0)
 	if e.has("ally"):
@@ -1077,16 +1214,11 @@ func apply_fx(e: Dictionary) -> void:
 		for i in int(e["mushrooms"]):
 			var sp := p.position + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(24, 90)
 			if map.water_at(sp) == 0 and not map.is_wall(sp):
-				var idx := rng.randi() % Pois.SHROOMS.size()
-				var s := Sprite2D.new()
-				s.texture = Props.tex(["shroom_red", "shroom_brown", "shroom_blue", "shroom_gold"][rng.randi() % 4])
-				s.position = sp.floor()
-				food_layer.add_child(s)
-				shrooms.append({"n": s, "p": sp, "i": idx, "good": Pois.SHROOMS[idx][1]})
+				_place_shroom(sp)
 	if e.has("shroom"):
 		for i in int(e["shroom"]):
 			var sh: Array = Pois.SHROOMS[rng.randi() % Pois.SHROOMS.size()]
-			fx.text(p.position + Vector2(0, -p.r * 2.5 - i * 10), String(sh[0]).to_upper(), Pal.c("green", 4) if sh[1] else Pal.c("red", 3))
+			fx.text(p.position + Vector2(0, -p.r * 2.5 - i * 10), String(sh[0]).to_upper(), shroom_color(String(sh[1])))
 			apply_fx(sh[2])
 	if e.has("time"):
 		run.time += Run.DAY_LEN * 0.5

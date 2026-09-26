@@ -287,6 +287,8 @@ static func image(name: String) -> Image:
 			p.ellipse(5, 4, 4.2, 2.8, Pal.c(cap, 2))
 			p.put(3, 3, Pal.e("white"))
 			p.put(6, 2, Pal.e("white"))
+		"shroom_0", "shroom_1", "shroom_2", "shroom_3", "shroom_4", "shroom_5", "shroom_6", "shroom_7", "shroom_8", "shroom_9":
+			return _shroom(int(name.substr(7)))
 		"fruit":
 			p = Px.make(8, 9)
 			p.circle(4, 5, 3, Pal.c("red", 2))
@@ -434,6 +436,36 @@ static func image(name: String) -> Image:
 		_:
 			p = Px.make(6, 6)
 			p.rect(0, 0, 6, 6, Color(1, 0, 1))
+	p.shade(0.14, 0.18)
+	p.outline(Pal.INK, 0.3)
+	return p.img
+
+
+## One of the ten mushroom looks (Pois.SHROOM_LOOKS): a cap color and a shape, so a look
+## is easy to tell apart and remember across a run.
+static func _shroom(look: int) -> Image:
+	var d: Array = Pois.SHROOM_LOOKS[clampi(look, 0, Pois.SHROOM_LOOKS.size() - 1)]
+	var ramp := String(d[0])
+	var p := Px.make(12, 12)
+	var stem := Pal.c("snow", 4)
+	match String(d[1]):
+		"spotted":
+			p.rect(5, 7, 3, 4, stem)
+			p.ellipse(6, 5, 5.0, 3.2, Pal.c(ramp, 2))
+			for q in [Vector2i(3, 5), Vector2i(6, 3), Vector2i(8, 5)]:
+				p.put(q.x, q.y, Pal.e("white"))
+		"round":
+			p.rect(5, 7, 3, 4, stem)
+			p.ellipse(6, 5, 4.5, 3.4, Pal.c(ramp, 2))
+			p.line(3, 7, 9, 7, Pal.c(ramp, 1), 1.0)
+		"tall":
+			p.rect(5, 6, 2, 5, stem)
+			p.poly(PackedVector2Array([Vector2(2, 7), Vector2(6, 0), Vector2(10, 7)]), Pal.c(ramp, 2))
+			p.put(5, 3, Pal.c(ramp, 3))
+		"flat":
+			p.rect(5, 8, 3, 3, stem)
+			p.ellipse(6, 7, 5.5, 1.8, Pal.c(ramp, 2))
+			p.line(2, 6, 9, 6, Pal.c(ramp, 3), 1.0)
 	p.shade(0.14, 0.18)
 	p.outline(Pal.INK, 0.3)
 	return p.img

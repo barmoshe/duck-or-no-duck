@@ -4,7 +4,8 @@ extends RefCounted
 ## are gone. Each kind only appears in certain terrains. Effects are read by
 ## World.apply_option: heal, bonus (permanent stats), buff (timed), xp, mutagen,
 ## hp_cost, ally, evo (open an evolution hand), random_evo, time (night/day), fruit,
-## mushrooms, parent (an angry Alpha shows up), affinity, gamble.
+## mushrooms, parent (an angry Alpha shows up), affinity, gamble; mushroom effects add
+## hot (heal over time), random_buff, refresh, poison, trip and deaf.
 
 const ALL := {
 	"healing_pond": {"name": "Healing Pond", "terrain": ["grass", "snow"], "options": [
@@ -57,18 +58,59 @@ const ALL := {
 		{"name": "Coin Flip", "desc": "Win: a burst of XP. Lose: 40% HP.", "fx": {"gamble": true}}]},
 }
 
-## Mushroom effects: [name, good?, fx]
+## Mushrooms, as Crab does them: you choose to eat one (the EAT button, or E), every one
+## gives a little Progress on top of its effect, and each look keeps one effect all run.
+## A look is a cap color and a shape; at the start of a run the looks are dealt a random
+## effect each, so "the blue spotted one heals" holds until the run ends.
+## Effects: [name, kind ("good", "side" or "bad"), fx]. Bad poison is a share of your
+## Max HP per second, for 4 seconds.
 const SHROOMS := [
-	["Tasty!", true, {"xp": 0.6}],
-	["Refreshing", true, {"heal": 0.25}],
-	["Zoomy", true, {"buff": {"speed": 2.0}, "secs": 20.0}],
-	["Mighty", true, {"buff": {"physical": 5.0, "ability": 5.0}, "secs": 25.0}],
-	["Lucky", true, {"mutagen": 1}],
-	["Yuck", false, {"hp_cost": 0.15}],
-	["Sleepy", false, {"buff": {"speed": -2.0}, "secs": 12.0}],
-	["Dizzy", false, {"dizzy": 6.0}],
-	["Tiny", false, {"buff": {"size": -30.0, "physical": -3.0}, "secs": 20.0}],
+	["Yummy", "good", {"xp": 0.8}],
+	["Delicious", "good", {"heal": 0.3}],
+	["Medicinal", "good", {"hot": 0.4, "secs": 4.0}],
+	["Amusing", "good", {"random_buff": 4.0, "secs": 30.0}],
+	["Mystical", "good", {"mutagen": 2}],
+	["Nutritious", "good", {"bonus": {"max_hp": 5.0}}],
+	["Prolific", "good", {"fruit": 4}],
+	["Spicy", "side", {"buff": {"speed": 2.0}, "secs": 8.0, "hp_cost": 0.05}],
+	["Refreshing", "side", {"refresh": true, "buff": {"speed": -1.0}, "secs": 6.0}],
+	["Stinging", "bad", {"poison": 0.015}],
+	["Poisonous", "bad", {"poison": 0.05}],
+	["Lethal", "bad", {"poison": 0.035}],
+	["Hallucinogen", "bad", {"trip": 10.0}],
+	["Deafening", "bad", {"deaf": 15.0}],
 ]
+## The looks a mushroom can have: [cap ramp, shape]. Ten looks for fourteen effects, so
+## each run has four effects you won't meet.
+const SHROOM_LOOKS := [
+	["red", "spotted"], ["brown", "round"], ["blue", "spotted"], ["gold", "round"], ["purple", "tall"],
+	["red", "tall"], ["brown", "flat"], ["blue", "tall"], ["green", "spotted"], ["pink", "flat"],
+]
+## Share of a level's Progress every mushroom gives, whatever its effect.
+const SHROOM_PROGRESS := 0.1
+
+
+## How likely you are to name a mushroom on sight at this Senses (the identify stat):
+## Crab's curve, blind at 0, about a quarter at 1, always right from 2.5.
+static func identify_chance(senses: float) -> float:
+	return clampf(pow(maxf(0.0, senses) / 2.5, 1.5), 0.0, 1.0)
+
+
+## Deal an effect to every look for a run: look index -> effect index.
+static func deal_shrooms(rng: RandomNumberGenerator) -> Array:
+	var fx: Array = []
+	for i in SHROOMS.size():
+		fx.append(i)
+	for i in range(fx.size() - 1, 0, -1):
+		var j := rng.randi() % (i + 1)
+		var t: int = fx[i]
+		fx[i] = fx[j]
+		fx[j] = t
+	return fx.slice(0, SHROOM_LOOKS.size())
+
+
+static func shroom_sprite(look: int) -> String:
+	return "shroom_%d" % look
 
 
 static func get_def(id: String) -> Dictionary:

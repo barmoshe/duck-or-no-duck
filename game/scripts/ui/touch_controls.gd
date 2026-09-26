@@ -1,12 +1,14 @@
 class_name TouchControls
 extends Control
 ## Floating joystick (any touch that isn't a button, left 60% preferred) plus DASH and
-## ULTIMATE buttons in the right thumb zone. Raw multi-touch in _input; touch ids are
+## ULTIMATE buttons in the right thumb zone, and an EAT button that shows up there while
+## a mushroom is in reach. Raw multi-touch in _input; touch ids are
 ## tracked per finger with no assumptions about their values (iOS sends huge ones).
 ## Mouse drag works on desktop; touch-emulated mouse events are ignored.
 
 signal move_pressed
 signal ult_pressed
+signal eat_pressed
 
 const STICK_R := 22.0
 const BTN_R := 15.0
@@ -20,6 +22,7 @@ var knob := Vector2.ZERO
 var btns := {
 	"move": {"label": "", "id": "", "cd": 0.0, "max": 1.0, "pos": Vector2.ZERO, "pressed": 0.0},
 	"ult": {"label": "", "id": "", "cd": 0.0, "max": 1.0, "pos": Vector2.ZERO, "pressed": 0.0},
+	"eat": {"label": "", "id": "eat_shroom", "cd": 0.0, "max": 1.0, "pos": Vector2.ZERO, "pressed": 0.0},
 }
 var blocked: Array[Rect2] = []
 var hint_t := 0.0
@@ -39,8 +42,10 @@ func _layout() -> void:
 	var s := Game.safe_rect(size)
 	btns["move"]["pos"] = (Vector2(s.end.x - 22, s.end.y - 36)).floor()
 	btns["ult"]["pos"] = (Vector2(s.end.x - 58, s.end.y - 27)).floor()
+	btns["eat"]["pos"] = (Vector2(s.end.x - 44, s.end.y - 70)).floor()
 	if size.x < size.y:
 		btns["ult"]["pos"] = (Vector2(s.end.x - 26, s.end.y - 62)).floor()
+		btns["eat"]["pos"] = (Vector2(s.end.x - 58, s.end.y - 44)).floor()
 
 
 func _process(dt: float) -> void:
@@ -86,6 +91,8 @@ func _touch(idx: int, pressed: bool, p: Vector2) -> void:
 			btns[b]["pressed"] = 1.0
 			if b == "move":
 				move_pressed.emit()
+			elif b == "eat":
+				eat_pressed.emit()
 			else:
 				ult_pressed.emit()
 			return
@@ -148,7 +155,7 @@ func _draw() -> void:
 		draw_circle(c, rr, Ui.WOOD)
 		draw_arc(c, rr - 0.5, PI * 1.1, PI * 1.9, 12, Ui.WOOD_HI, 1.0)
 		draw_circle(c, rr - 3.0, Ui.WOOD_OUT)
-		draw_circle(c, rr - 4.0, (Ui.PARCHMENT if k == "move" else Color("feae34")) if rdy else Color("8b9bb4"))
+		draw_circle(c, rr - 4.0, (Ui.PARCHMENT if k == "move" else (Pal.e("leaf") if k == "eat" else Color("feae34"))) if rdy else Color("8b9bb4"))
 		var ic := Icons.tex(String(b.get("id", "")))
 		var isz := ic.get_size()
 		draw_texture(ic, (c - isz * 0.5).floor() + Vector2(1, 0), Color.WHITE if rdy else Color(1, 1, 1, 0.6))

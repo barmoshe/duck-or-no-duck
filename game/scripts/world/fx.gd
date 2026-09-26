@@ -7,6 +7,7 @@ var bits: Array = []  # {p, v, life, max, c, s, g}
 var rings: Array = []  # {p, r0, r1, t, dur, c}
 var cones: Array = []  # {p, dir, len, arc, t, dur, c}
 var texts: Array = []  # {p, s, t, dur, c, big}
+var tags: Array = []  # {p, s, c} labels that stay put, refilled every frame (mushroom names)
 var marks: Array = []  # {p, r, t, dur, c} telegraph circles
 var stars: Array = []  # {p, t, dur, c} four-point twinkles (legendary and healing food)
 var slashes: Array = []  # {p, dir, r, t, dur, c, flip} crescent swipes
@@ -152,6 +153,19 @@ func _draw() -> void:
 		if float(b["life"]) < float(b["max"]) * 0.3:
 			col4.a *= 0.6
 		draw_rect(Rect2((b["p"] as Vector2).floor(), Vector2(s, s)), col4)
+	# labels never overlap: the first one listed wins its spot
+	var taken: Array[Rect2] = []
+	for tg in tags:
+		var tw := font.get_string_size(String(tg["s"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+		var box := Rect2((tg["p"] as Vector2) - Vector2(tw * 0.5 + 2, 8), Vector2(tw + 4, 10))
+		var free := true
+		for r in taken:
+			if r.intersects(box):
+				free = false
+				break
+		if free:
+			taken.append(box)
+			_label((tg["p"] as Vector2).floor(), String(tg["s"]), tg["c"])
 	for tx in texts:
 		var u := float(tx["t"]) / float(tx["dur"])
 		var p := ((tx["p"] as Vector2) + Vector2(0, -12.0 * u)).floor()
@@ -164,3 +178,12 @@ func _draw() -> void:
 		for d in [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]:
 			draw_string(font, p + o + d, s2, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(Pal.INK, col5.a))
 		draw_string(font, p + o, s2, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col5)
+
+
+## A small label in the pixel font with an ink outline, centered on p.
+func _label(p: Vector2, s: String, c: Color) -> void:
+	var w := font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+	var o := Vector2(-floorf(w * 0.5), 0)
+	for d in [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]:
+		draw_string(font, p + o + d, s, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(Pal.INK, c.a))
+	draw_string(font, p + o, s, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, c)

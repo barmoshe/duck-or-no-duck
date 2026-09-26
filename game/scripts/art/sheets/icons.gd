@@ -584,6 +584,20 @@ const ALL := {
 		"..kkkkkkkk...",
 		".............",
 	],
+	"eat_shroom": [
+		".............",
+		"....kkkkk....",
+		"..kkrrrrrkk..",
+		".krrwwrrrrrk.",
+		".krwwrrrwwrk.",
+		"krrrrrrrrrrrk",
+		"kkkkkkkkkkkkk",
+		"....kssak....",
+		"....ksssk....",
+		"....ksssk....",
+		"....kkkkk....",
+		".............",
+	],
 }
 
 static var _cache := {}

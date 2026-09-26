@@ -250,7 +250,7 @@ func _food() -> void:
 		sensed += 1 if w._roll_food(w.player.position + Vector2(300, 0), "fruit", 1.0, "plant")["heal"] else 0
 	main.run.stats["forage"] = 0.0
 	check(sensed > plain * 1.6, "Food Sense makes more food sparkle (%d vs %d)" % [sensed, plain])
-	# eating (Crab): walk over food and bite everything in reach at once, four bites a piece
+	# eating: walk over food and eat it one piece at a time, four bites a piece
 	main.run.stats["vegan"] = 0.0
 	for f in w.foods:
 		(f["n"] as Node).queue_free()
@@ -265,14 +265,23 @@ func _food() -> void:
 	for f in [fd, fd2]:
 		f["v"] = Vector2.ZERO
 	w._feed(0.01)
-	check(int(fd["bites"]) == Foods.BITES - 1 and int(fd2["bites"]) == Foods.BITES - 1, "the first bite is instant, on the move, and bites every piece in reach")
+	var bitten := (1 if int(fd["bites"]) == Foods.BITES - 1 else 0) + (1 if int(fd2["bites"]) == Foods.BITES - 1 else 0)
+	var whole := (1 if int(fd["bites"]) == Foods.BITES else 0) + (1 if int(fd2["bites"]) == Foods.BITES else 0)
+	check(bitten == 1 and whole == 1, "the first bite is instant, on the move, and takes one piece only")
+	var first: Dictionary = fd2 if int(fd2["bites"]) < Foods.BITES else fd
+	var second: Dictionary = fd if is_same(first, fd2) else fd2
+	check(is_same(first, fd2), "you start on the nearest piece")
 	check(main.run.xp > xp_e or main.run.level > lvl_e, "each bite gives Progress")
 	w._feed(0.01)
-	check(int(fd["bites"]) == Foods.BITES - 1, "the next bite waits for the bite time")
+	check(int(first["bites"]) == Foods.BITES - 1, "the next bite waits for the bite time")
 	var bt := Foods.bite_time(float(main.run.stats["feed"]))
-	for i in Foods.BITES * 3:
+	for i in (Foods.BITES - 1) * 2:
 		w._feed(bt / 2.0 + 0.001)
-	check(not w.foods.has(fd) and not w.foods.has(fd2), "four bites finish a piece")
+	check(not w.foods.has(first) and int(second["bites"]) == Foods.BITES, "you finish one piece before starting the next")
+	for i in Foods.BITES * 2 + 2:
+		w._feed(bt / 2.0 + 0.001)
+	check(not w.foods.has(second), "four bites finish a piece")
+	check(Foods.bite_time(100.0) >= 0.5, "a bite takes at least half a second at base Feeding Speed")
 	check(Foods.bite_time(125.0) < Foods.bite_time(100.0), "Feeding Speed (Saliva) bites faster")
 	var shares := 0.0
 	for left in range(Foods.BITES, 0, -1):
@@ -299,9 +308,62 @@ func _food() -> void:
 	check(w.pouch.size() == 2, "Cheek Pouch stores food nearby up to its capacity (%d)" % w.pouch.size())
 	w.bite_cd = 0.0
 	w._feed(0.01)
-	check(int(w.pouch[0]["bites"]) == Foods.BITES - 1, "food in your cheeks is bitten with the rest")
+	check(int(w.pouch[0]["bites"]) == Foods.BITES - 1 and int(w.pouch[1]["bites"]) == Foods.BITES, "food in your cheeks is eaten one piece at a time when nothing is in reach")
 	main.run.stats["pouch"] = 0.0
 	w.pouch.clear()
+	# mushrooms: eaten on purpose, each look keeps one effect all run, named by Senses
+	for sm in w.shrooms:
+		(sm["n"] as Node).queue_free()
+	w.shrooms.clear()
+	check(w.shroom_fx.size() == Pois.SHROOM_LOOKS.size(), "every mushroom look is dealt an effect for the run")
+	var dealt := {}
+	for e in w.shroom_fx:
+		dealt[e] = true
+	check(dealt.size() == w.shroom_fx.size(), "no two looks share an effect")
+	var sm0: Dictionary = w._place_shroom(w.player.position + Vector2(3, 0))
+	for i in 30:
+		w._pickups(0.016)
+	check(w.shrooms.size() == 1, "walking onto a mushroom doesn't eat it")
+	check(not w.shroom_in_reach().is_empty(), "a mushroom at your feet is in reach")
+	var xs: float = main.run.xp
+	var ls: int = main.run.level
+	var eff := w.shroom_effect(sm0)
+	var hp_s: float = w.player.hp
+	check(w.eat_shroom(), "EAT eats the mushroom in reach")
+	check(w.shrooms.is_empty(), "the mushroom is gone once eaten")
+	check(main.run.xp > xs or main.run.level > ls, "every mushroom gives some Progress")
+	check(w.shroom_known.has(int(sm0["look"])), "once eaten, you know what that look does")
+	check(not w.eat_shroom(), "nothing to eat when no mushroom is in reach")
+	check(String(eff[1]) in ["good", "side", "bad"], "the effect has a kind (%s)" % eff[0])
+	w.player.hp = w.player.max_hp
+	w.player.poison_t = 0.0
+	w.apply_fx({"poison": 0.05})
+	for i in 60:
+		w.player.tick(1.0 / 15.0)
+	check(w.player.hp < w.player.max_hp * 0.9 and w.player.hp > w.player.max_hp * 0.7, "Poisonous takes about a fifth of your health over 4 s (%d/%d)" % [roundi(w.player.hp), roundi(w.player.max_hp)])
+	w.player.hp = w.player.max_hp * 0.5
+	w.apply_fx({"hot": 0.4, "secs": 4.0})
+	for i in 50:
+		w._regen(0.1)
+	check(w.player.hp > w.player.max_hp * 0.85, "Medicinal heals over a few seconds")
+	w.player.hp = w.player.max_hp
+	w.apply_fx({"deaf": 15.0, "trip": 10.0})
+	w.step(0.016)
+	check(Sfx.muffle < 0.0 and w.trip > 0.0, "Deafening muffles the sound; Hallucinogen swirls the colors")
+	w.deaf = 0.0
+	w.trip = 0.0
+	w.step(0.016)
+	check(Sfx.muffle == 0.0, "the sound comes back")
+	check(Pois.identify_chance(0.0) == 0.0 and Pois.identify_chance(1.0) > 0.2 and Pois.identify_chance(1.0) < 0.3 and Pois.identify_chance(2.5) >= 1.0, "Senses: blind at 0, a quarter at 1, always right at 2.5")
+	w.shroom_known.clear()
+	main.run.stats["identify"] = 3.0
+	var seen: Dictionary = w._place_shroom(w.player.position + Vector2(40, 0))
+	w._shrooms_near()
+	check(w.shroom_known.has(int(seen["look"])), "high Senses names a mushroom on sight")
+	main.run.stats["identify"] = 0.0
+	for sm in w.shrooms:
+		(sm["n"] as Node).queue_free()
+	w.shrooms.clear()
 	# kills drop pieces of food, big ones more, and no carcass
 	for f in w.foods:
 		(f["n"] as Node).queue_free()
@@ -357,6 +419,9 @@ func _best_card(r: Run, hand: Array) -> int:
 
 func _bot(w: World) -> Vector2:
 	var p := w.player
+	var sm := w.shroom_in_reach()
+	if not sm.is_empty() and (not w.shroom_known.has(int(sm["look"])) or String(w.shroom_effect(sm)[1]) != "bad"):
+		w.eat_shroom()
 	# hurt: run for the nearest burrow and hide
 	if p.hp < p.max_hp * 0.4:
 		var nb := Vector2.ZERO

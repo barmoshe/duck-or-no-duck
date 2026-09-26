@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Screenshot a scene under Xvfb (software GL):  tools/shot.sh out.png [scene] [frames] [WxH]
-#   scenes: title run night boss final levelup poi pause end eat
+#   scenes: title run night boss final levelup poi pause end eat shrooms
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 OUT="$(realpath -m "$1")"; SCENE="${2:-title}"; FRAMES="${3:-120}"; RES="${4:-1280x590}"

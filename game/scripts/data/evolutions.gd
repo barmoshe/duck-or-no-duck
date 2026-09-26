@@ -119,7 +119,7 @@ const ALL := {
 	"omnivore": {"name": "Omnivore", "type": "passive", "aff": "prey", "rarity": 1, "max": 3, "excludes": ["vegan"],
 		"stats": {"omni": 1.0}, "desc": "+12% XP from all food. Food lasts 25% longer on the ground."},
 	"more_eyes": {"name": "More Eyes", "type": "passive", "aff": "prey", "rarity": 1, "max": 3, "look": {"eyes": "compound"},
-		"stats": {"vision": 30.0, "identify": 1.0, "crit": 3.0, "shroom_xp": 50.0}, "desc": "Tell good mushrooms from bad, and they give +50% XP. See further at night."},
+		"stats": {"vision": 30.0, "identify": 1.0, "crit": 3.0, "shroom_xp": 50.0}, "desc": "Name mushrooms on sight more often (+1 Senses), and they give +50% Progress. See further at night."},
 	# ------------------------------------------------------------ gregarious
 	"pheromones": {"name": "Pheromones", "type": "passive", "aff": "gregarious", "rarity": 0, "max": 5, "unlocks": {2: ["pack_call"]}, "look": {"head": "antennae"},
 		"stats": {"social": 3.0}, "desc": "+3 Social: stronger, more allies."},
@@ -283,7 +283,7 @@ const STAT_LABEL := {
 	"heal_kill": ["Heal on Kill", ""], "execute": ["Execute", "%"], "stealth": ["Stealth", "%"], "revive": ["Extra Life", ""],
 	"ally_cap": ["Ally Slots", ""], "ally_dmg": ["Ally Damage", "%"], "ally_regen": ["Ally Regen", "/s"], "herd": ["Armor per Ally", ""],
 	"ram": ["Ram", "%"], "echo": ["Echo", "%"], "swim": ["Swimming", ""], "temper": ["Temper", "%"], "all": ["All Stats", "%"],
-	"vision": ["Night Vision", ""], "meat_xp": ["Meat Progress", "%"], "fish_xp": ["Fish Progress", "%"],
+	"vision": ["Night Vision", ""], "identify": ["Senses", ""], "meat_xp": ["Meat Progress", "%"], "fish_xp": ["Fish Progress", "%"],
 	"fruit_xp": ["Fruit Progress", "%"], "fruit_heal": ["Fruit Heal", ""], "scav_xp": ["Carrion Progress", "%"],
 	"feed": ["Feeding Speed", "%"], "shroom_xp": ["Mushroom Progress", "%"], "cdr": ["Cooldowns", "%"], "area": ["Area", "%"],
 	"lifesteal": ["Lifesteal", "%"], "terrain_res": ["Terrain Penalty", "-%"], "forage": ["Healing Food", "%"],

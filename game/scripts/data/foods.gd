@@ -30,12 +30,12 @@ const TYPE_COL := {"fruit": "salmon", "meat": "peach", "fish": "cyan"}
 const FRUIT_OF_BIOME := ["apple", "apple", "pear", "snowberry"]
 ## base fruit XP (before rarity, food bonuses and the run's minute)
 const FRUIT_XP := 2.5
-## Eating, as Crab does it: every piece takes BITES bites, and you bite everything in
-## reach at once, one bite every BITE_TIME seconds at 100% Feeding Speed. The first bite
-## on reaching food is instant. Each bite pays one share of the piece, the last pays two
-## (Crab: 2 + 2 + 2 + 4 = 10 for a common piece).
+## Eating: every piece takes BITES bites, and you eat one piece at a time, one bite every
+## BITE_TIME seconds at 100% Feeding Speed (a common piece is about two seconds). The
+## first bite on reaching food is instant. Each bite pays one share of the piece, the
+## last pays two (Crab: 2 + 2 + 2 + 4 = 10 for a common piece).
 const BITES := 4
-const BITE_TIME := 0.4
+const BITE_TIME := 0.55
 const SHARES := BITES + 1
 ## the piece's value is its Progress for all four bites
 const VALUE := 1.0

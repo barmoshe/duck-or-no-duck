@@ -15,6 +15,7 @@ var _bufs := {}  # name -> PackedFloat32Array being built
 var _pos := {}
 var _want := "day"
 var _order := ["day", "night", "boss"]
+var muffle := 0.0  # dB added to every sound and the music (a Deafening mushroom)
 
 
 func _ready() -> void:
@@ -47,7 +48,7 @@ func _process(dt: float) -> void:
 			break
 	for m in _order:
 		var mp: AudioStreamPlayer = _music[m]
-		var target := -13.0 if (m == _want and Game.music and Game.sound) else -60.0
+		var target := (-13.0 + muffle) if (m == _want and Game.music and Game.sound) else -60.0
 		mp.volume_db = move_toward(mp.volume_db, target, dt * 30.0)
 
 
@@ -66,7 +67,7 @@ func play(name: String, pitch: float = 1.0, vol_db: float = 0.0) -> void:
 	_next = (_next + 1) % _players.size()
 	p.stream = _streams[name]
 	p.pitch_scale = pitch * randf_range(0.97, 1.03)
-	p.volume_db = vol_db
+	p.volume_db = vol_db + muffle
 	p.play()
 
 
