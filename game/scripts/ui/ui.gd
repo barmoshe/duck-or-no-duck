@@ -160,3 +160,39 @@ static func slot(ci: CanvasItem, r: Rect2, icon: Texture2D, cd_frac: float) -> v
 	if cd_frac > 0.0:
 		var hgt := ceilf(inner.size.y * clampf(cd_frac, 0.0, 1.0))
 		ci.draw_rect(Rect2(inner.position, Vector2(inner.size.x, hgt)), Color(0.09, 0.07, 0.14, 0.62))
+
+
+## Crab's red title ribbon with folded tails, centered on c.x with its top at c.y.
+static func ribbon(ci: CanvasItem, c: Vector2, label: String, dark: bool = false) -> void:
+	var tw := text_w(bold(), label, 16) + 24.0
+	var r := Rect2(floorf(c.x - tw * 0.5), c.y, floorf(tw), 19)
+	var red := Color("be4a2f") if not dark else Color("a22633")
+	for k in [-1, 1]:
+		var tail_x := r.position.x - 8 if k < 0 else r.end.x
+		ci.draw_rect(Rect2(tail_x, r.position.y + 4, 8, 13), WOOD_OUT)
+		ci.draw_rect(Rect2(tail_x + (1 if k < 0 else 0), r.position.y + 5, 7, 11), red.darkened(0.3))
+	wood(ci, r)
+	ci.draw_rect(r.grow(-2), red)
+	ci.draw_rect(Rect2(r.position + Vector2(2, 2), Vector2(r.size.x - 4, 1)), red.lightened(0.3))
+	text(ci, Vector2(c.x, r.position.y + 15), label, TEXT, bold(), 16, 1)
+
+
+## A wooden frame holding a parchment sheet.
+static func board(ci: CanvasItem, r: Rect2) -> void:
+	wood(ci, r)
+	ci.draw_rect(r.grow(-3), PARCHMENT)
+	ci.draw_rect(Rect2(r.position + Vector2(3, 3), Vector2(r.size.x - 6, 1)), Color(1, 1, 1, 0.4))
+
+
+const INK_TEXT := Color("3e2731")
+
+
+## A wooden button with a colored face and a centered label.
+static func wood_button(ci: CanvasItem, r: Rect2, label: String, face: Color, down: bool = false, enabled: bool = true, size: int = 8) -> void:
+	var rr := Rect2(r.position.floor() + Vector2(0, 1 if down else 0), r.size.floor())
+	wood(ci, rr)
+	var f := face if enabled else Color("5a3a35")
+	ci.draw_rect(rr.grow(-3), f)
+	ci.draw_rect(Rect2(rr.position + Vector2(3, 3), Vector2(rr.size.x - 6, 1)), f.lightened(0.3))
+	var fnt := bold() if size >= 16 else small()
+	text(ci, Vector2(rr.get_center().x, floorf(rr.get_center().y + size * 0.36)), label, TEXT if enabled else DIM, fnt, size, 1)

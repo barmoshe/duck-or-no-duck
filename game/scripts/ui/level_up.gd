@@ -87,19 +87,8 @@ func _draw() -> void:
 	_side(Rect2(s.end.x - rw, y0, rw, s.end.y - y0))
 
 
-## Crab's red title ribbon with notched ends.
 func _ribbon(c: Vector2, text: String, branch: bool) -> void:
-	var tw := Ui.text_w(Ui.bold(), text, 16) + 24.0
-	var r := Rect2(floorf(c.x - tw * 0.5), c.y, floorf(tw), 19)
-	var red := Color("be4a2f") if not branch else Color("a22633")
-	for k in [-1, 1]:
-		var tail_x := r.position.x - 8 if k < 0 else r.end.x
-		draw_rect(Rect2(tail_x, r.position.y + 4, 8, 13), Ui.WOOD_OUT)
-		draw_rect(Rect2(tail_x + (1 if k < 0 else 0), r.position.y + 5, 7, 11), red.darkened(0.3))
-	Ui.wood(self, r)
-	draw_rect(r.grow(-2), red)
-	draw_rect(Rect2(r.position + Vector2(2, 2), Vector2(r.size.x - 4, 1)), red.lightened(0.3))
-	Ui.text(self, Vector2(c.x, r.position.y + 15), text, Color.WHITE, Ui.bold(), 16, 1)
+	Ui.ribbon(self, c, text, branch)
 
 
 # ------------------------------------------------------------------ a card

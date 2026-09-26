@@ -1,6 +1,7 @@
 class_name PoiScreen
 extends Screen
-## A point of interest's choice: its picture and three options; pick one, lose the rest.
+## A point of interest's choice, in the Evolution screen's style: a ribbon with its name,
+## its picture on a parchment board, and three option cards. Pick one, lose the rest.
 
 signal chosen(fx: Dictionary)
 
@@ -20,29 +21,37 @@ func press(id: String) -> void:
 
 func _draw() -> void:
 	begin()
-	draw_rect(Rect2(Vector2.ZERO, size), Color(Pal.INK, 0.72))
+	draw_rect(Rect2(Vector2.ZERO, size), Color(Pal.INK, 0.62))
 	var s := safe()
 	var d := Pois.get_def(kind)
 	if d.is_empty():
 		return
 	var cx := s.get_center().x
+	Ui.ribbon(self, Vector2(cx, s.position.y + 2), String(d["name"]).to_upper())
+	var b := Rect2(s.position.x + 4, s.position.y + 24, s.size.x - 8, s.size.y - 24)
+	Ui.board(self, b)
+	# the place itself, on the left of the board
 	var tex := Props.tex("poi_" + kind)
 	var tsz := tex.get_size() * 2
-	var top := s.position.y + 10
-	draw_texture_rect(tex, Rect2(Vector2(cx - tsz.x * 0.5, top), tsz).abs(), false)
-	Ui.text(self, Vector2(cx, top + tsz.y + 14), String(d["name"]).to_upper(), Pal.c("gold", 4), Ui.bold(), 16, 1)
-	Ui.text(self, Vector2(cx, top + tsz.y + 24), "Choose one. The others are gone.", Ui.DIM, Ui.small(), 8, 1)
+	var pic := Rect2(b.position.x + 8, b.position.y + 8, maxf(76.0, tsz.x + 12), b.size.y - 16)
+	draw_rect(pic, Color("c28569"))
+	draw_rect(pic.grow(-1), Color("ead4aa").darkened(0.06))
+	draw_texture_rect(tex, Rect2((pic.get_center() - tsz * 0.5).floor(), tsz), false)
+	Ui.para(self, Vector2(pic.position.x + 4, pic.end.y - 20), "CHOOSE ONE. THE OTHERS ARE GONE.", pic.size.x - 8, Color("5a3a35"), Ui.small(), 8, 8, false)
 	var opts: Array = d["options"]
 	var n := opts.size()
-	var cw := minf(140.0, (s.size.x - 20.0 - (n - 1) * 6) / n)
-	var ch := 62.0
-	var y := top + tsz.y + 32
-	var x0 := cx - (cw * n + (n - 1) * 6) * 0.5
+	var area := Rect2(pic.end.x + 6, b.position.y + 8, b.end.x - pic.end.x - 14, b.size.y - 16)
+	var cw := floorf((area.size.x - (n - 1) * 5.0) / maxf(1, n))
 	for i in n:
-		var r := Rect2(x0 + i * (cw + 6), y, cw, ch)
 		var down := is_down("opt:%d" % i)
-		var rr := Rect2(r.position + (Vector2(0, 1) if down else Vector2.ZERO), r.size)
-		Ui.panel(self, rr, Color("262b44"), Pal.c("gold", 3), Color("3a4466"))
-		Ui.text(self, Vector2(rr.get_center().x, rr.position.y + 12), String(opts[i]["name"]).to_upper(), Color.WHITE, Ui.small(), 8, 1)
-		Ui.para(self, Vector2(rr.position.x + 5, rr.position.y + 24), String(opts[i]["desc"]), rr.size.x - 10, Color("c0cbdc"))
+		var r := Rect2(area.position.x + i * (cw + 5.0), area.position.y + (1 if down else 0), cw, area.size.y)
+		draw_rect(r, Pal.INK)
+		draw_rect(r.grow(-1), Pal.e("amber"))
+		var body := r.grow(-3)
+		draw_rect(body, Color("733e39"))
+		Ui.para(self, Vector2(body.position.x + 4, body.position.y + 11), String(opts[i]["name"]).to_upper(), body.size.x - 8, Color.WHITE, Ui.small(), 8, 9)
+		var box := Rect2(body.position.x + 2, body.position.y + 26, body.size.x - 4, body.size.y - 28)
+		draw_rect(box, Color("e4a672").darkened(0.25))
+		draw_rect(box.grow(-1), Color("e4a672"))
+		Ui.para(self, Vector2(box.position.x + 3, box.position.y + 10), String(opts[i]["desc"]), box.size.x - 6, Ui.INK_TEXT, Ui.small(), 8, 8, false)
 		add_button("opt:%d" % i, r)

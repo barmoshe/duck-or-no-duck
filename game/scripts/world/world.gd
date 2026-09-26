@@ -728,7 +728,7 @@ func shake_source(src: Dictionary, hard: bool = false) -> void:
 		return
 	src["cd"] = 0.9
 	src["shake"] = 0.35
-	var n := mini(int(src["stock"]), (2 if hard else 1) + (1 if float(run.stats["pollen"]) > 0.0 else 0))
+	var n := mini(int(src["stock"]), (2 if hard else 1) + (1 if float(run.stats["pollen"]) > 0.0 else 0) + (1 if run.has_gene("forager") else 0))
 	for i in n:
 		_drop_fruit(src)
 	src["stock"] = int(src["stock"]) - n
@@ -784,10 +784,10 @@ func _food_sources(dt: float) -> void:
 func _fish_jump(pl: Dictionary) -> void:
 	pl["stock"] = int(pl["stock"]) - 1
 	if int(pl["stock"]) <= 0:
-		pl["t"] = 30.0
+		pl["t"] = 15.0 if run.has_gene("angler") else 30.0
 	var p: Vector2 = pl["p"]
 	var xp := Foods.FISH_POOL_XP * (1.0 + run.minute() * 0.05)
-	for i in 2:
+	for i in 3 if run.has_gene("angler") else 2:
 		var f := _roll_food(p, "fish", xp, "pool", false, "", 4.0)
 		f["v"] = Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(40.0, 70.0)
 		f["vz"] = 70.0
@@ -1093,7 +1093,7 @@ func _reap() -> void:
 ## Animals get tougher as the clock runs: HP grows faster than damage.
 func strength() -> float:
 	var s := 1.0 + run.minute() * 0.09 + run.minute() * run.minute() * 0.002
-	if Game.genetic == "challenger":
+	if run.has_gene("challenger"):
 		s *= 1.3
 	return s
 

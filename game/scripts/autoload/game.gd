@@ -14,7 +14,7 @@ var music := true
 var shake := true
 
 # meta
-var unlocked_genetics: Array = ["pioneer"]
+var unlocked_genetics: Array = ["pioneer", "forager", "angler", "omni_gut"]
 var achievements: Dictionary = {}  # id -> true
 var pressure_unlocked := 0
 var codex_species: Dictionary = {}  # id -> times eaten
@@ -23,6 +23,7 @@ var stats := {"runs": 0, "wins": 0, "best_level": 0, "best_duck": 0, "kills": 0}
 
 # chosen for the next run
 var genetic := "pioneer"
+var genetics: Array = []  # the two picked for the next run
 var pressure := 0
 
 var _fitted := Vector2i.ZERO
@@ -173,6 +174,9 @@ func load_meta() -> void:
 	music = bool(d.get("music", true))
 	shake = bool(d.get("shake", true))
 	unlocked_genetics = d.get("genetics", ["pioneer"])
+	for g in ["pioneer", "forager", "angler", "omni_gut"]:
+		if not g in unlocked_genetics:
+			unlocked_genetics.append(g)
 	achievements = d.get("achievements", {})
 	pressure_unlocked = int(d.get("pressure_unlocked", 0))
 	codex_species = d.get("codex_species", {})
@@ -187,7 +191,7 @@ func load_meta() -> void:
 
 
 func reset_meta() -> void:
-	unlocked_genetics = ["pioneer"]
+	unlocked_genetics = ["pioneer", "forager", "angler", "omni_gut"]
 	achievements = {}
 	pressure_unlocked = 0
 	codex_species = {}

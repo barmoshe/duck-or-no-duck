@@ -51,7 +51,8 @@ var bosses_survived := 0
 var boss_order: Array = []
 var won := false
 var revive_used := false
-var genetic := "pioneer"
+var genetic := "pioneer"  # the first of genes (kept for older call sites)
+var genes: Array = []
 var pressure := 0
 var reroll_cost := 1
 var upgrade_cost := 10
@@ -66,8 +67,12 @@ var buffs := {}  # temporary stat buffs: key -> {v, t}
 var _bonus := {}  # permanent point-of-interest bonuses
 
 
-func _init(gen: String = "pioneer", press: int = 0, rng: RandomNumberGenerator = null) -> void:
-	genetic = gen
+func _init(gen: Variant = "pioneer", press: int = 0, rng: RandomNumberGenerator = null) -> void:
+	if gen is Array:
+		genes = (gen as Array).duplicate()
+	elif String(gen) != "":
+		genes = [String(gen)]
+	genetic = String(genes[0]) if not genes.is_empty() else ""
 	pressure = press
 	owned = {"gulp": 1, "scoot": 1}
 	order = ["gulp", "scoot"]
@@ -80,13 +85,16 @@ func _init(gen: String = "pioneer", press: int = 0, rng: RandomNumberGenerator =
 			pool[j] = tmp
 	boss_order = pool.slice(0, 3)
 	boss_order.append("great_mallard")
-	match genetic:
-		"webfoot":
-			_grant("webbed_feet")
-		"duckling":
-			_grant("duck_bill")
-			_grant("down_feathers")
+	if has_gene("webfoot"):
+		_grant("webbed_feet")
+	if has_gene("duckling"):
+		_grant("duck_bill")
+		_grant("down_feathers")
 	recompute()
+
+
+func has_gene(id: String) -> bool:
+	return id in genes
 
 
 func _grant(id: String) -> void:
@@ -158,7 +166,7 @@ func xp_need() -> float:
 
 ## Adds XP, returns how many level ups happened.
 func add_xp(amount: float) -> int:
-	xp += amount * (1.0 + float(stats.get("xp", 0.0)) / 100.0) * (1.3 if genetic == "challenger" else 1.0)
+	xp += amount * (1.0 + float(stats.get("xp", 0.0)) / 100.0) * (1.3 if has_gene("challenger") else 1.0)
 	var ups := 0
 	while xp >= xp_need():
 		xp -= xp_need()
@@ -247,13 +255,14 @@ func tick_buffs(dt: float) -> void:
 
 func recompute() -> void:
 	stats = BASE.duplicate()
-	match genetic:
-		"pioneer":
-			stats["speed"] += 1.0
-		"grandiose":
-			stats["size"] += 25.0
-			stats["max_hp"] += 15.0
-			stats["speed"] -= 1.0
+	if has_gene("pioneer"):
+		stats["speed"] += 1.0
+	if has_gene("grandiose"):
+		stats["size"] += 25.0
+		stats["max_hp"] += 15.0
+		stats["speed"] -= 1.0
+	if has_gene("omni_gut"):
+		stats["food"] += 10.0
 	for id in owned:
 		var d := Evolutions.get_def(id)
 		var st: Dictionary = d.get("stats", {})
@@ -268,6 +277,9 @@ func recompute() -> void:
 	stats["physical"] += (level - 1) * 0.6
 	stats["ability"] += (level - 1) * 0.6
 	stats["size"] += minf(50.0, (level - 1) * 3.0)
+	if has_gene("purebred") and duck_parts() == 0:
+		stats["physical"] *= 1.1
+		stats["ability"] *= 1.1
 	var all := float(stats["all"])
 	if all > 0.0:
 		for k in ["physical", "ability", "max_hp", "speed", "social", "armor"]:

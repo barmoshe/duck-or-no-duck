@@ -91,7 +91,7 @@ func _shot_args() -> void:
 	if _shot == "":
 		return
 	Game.save_enabled = false
-	if _shot_scene != "title":
+	if not _shot_scene in ["title", "genes"]:
 		_start()
 		run.level = 12
 		for i in 14:
@@ -144,6 +144,8 @@ func _shot_timer() -> void:
 			_end(true)
 		"pause":
 			_pause()
+		"genes":
+			menu.start_genes()
 	for i in 10:
 		await get_tree().process_frame
 	print("sizes: vis=", get_viewport().get_visible_rect(), " hud=", hud.size, " menu=", menu.size, " root=", hud.get_parent().size, " win=", get_window().size, " content=", get_window().content_scale_size)
@@ -242,7 +244,7 @@ func _title() -> void:
 	get_tree().paused = false
 	levelup.hide_screen()
 	poi_screen.hide_screen()
-	run = Run.new(Game.genetic, Game.pressure, Game.rng)
+	run = Run.new(Game.genetics, Game.pressure, Game.rng)
 	world.build(Game.rng.randi(), run)
 	world.running = false
 	world.player.visible = false
@@ -257,6 +259,9 @@ func _title() -> void:
 func _on_menu(id: String) -> void:
 	match id:
 		"play", "again":
+			menu.start_genes()
+		"genes_done":
+			Game.genetics = menu.gene_picked.duplicate()
 			_start()
 		"genetics":
 			menu.open("genetics")
@@ -285,17 +290,12 @@ func _on_menu(id: String) -> void:
 		"quit":
 			get_tree().paused = false
 			_end(false)
-		_:
-			if id.begins_with("gen:"):
-				Game.genetic = id.substr(4)
-				Game.save_meta()
-				menu.open("title")
 
 
 func _start() -> void:
 	get_tree().paused = false
 	menu.hide_screen()
-	run = Run.new(Game.genetic, Game.pressure, Game.rng)
+	run = Run.new(Game.genetics, Game.pressure, Game.rng)
 	world.build(Game.rng.randi(), run)
 	hud.world = world
 	hud.build_minimap()
@@ -304,7 +304,7 @@ func _start() -> void:
 	Game.stats["runs"] = int(Game.stats["runs"]) + 1
 	_set_state(S.RUN)
 	hud.show_banner("DUCK OR NO DUCK ?!", "Eat. Evolve. Survive the bosses.")
-	if Game.genetic == "chosen":
+	if run.has_gene("chosen"):
 		queue.append({"kind": "evo", "min": 1})
 		_next_choice()
 
@@ -363,7 +363,7 @@ func _next_choice() -> void:
 	var c: Dictionary = queue.pop_front()
 	run.reroll_cost = 1
 	run.upgrade_cost = 10
-	run.free_rerolls = 1 if Game.genetic == "expert" else 0
+	run.free_rerolls = 1 if run.has_gene("expert") else 0
 	cur_min = int(c["min"])
 	match String(c["kind"]):
 		"level":
@@ -457,7 +457,9 @@ func _end(won: bool) -> void:
 	var st := Game.stats
 	st["best_level"] = maxi(int(st["best_level"]), run.level)
 	st["kills"] = int(st["kills"]) + run.kills
-	var info := {"won": won, "unlocked": Genetics.evaluate(run), "pressure_up": false}
+	var duck := Genetics.is_duck(run)
+	Game.achieve("verdict_duck" if duck else "verdict_noduck")
+	var info := {"won": won, "duck": duck, "unlocked": Genetics.evaluate(run), "pressure_up": false}
 	if won:
 		st["wins"] = int(st["wins"]) + 1
 		if run.pressure >= Game.pressure_unlocked and Game.pressure_unlocked < 5:

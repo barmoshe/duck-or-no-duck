@@ -54,9 +54,14 @@ await page.screenshot({ path: shots + 'webtest-title.png' });
 // PLAY sits 54 px above the bottom of the (about 215 px tall) virtual view: ~79% down
 await tap(W * 0.5, H * 0.79, 1234567);
 await page.waitForTimeout(400);
+// PLAY opens the Genetics pick (two picks): Enter takes the first card each time
+await page.keyboard.press("Enter");
+await page.waitForTimeout(350);
+await page.keyboard.press("Enter");
+await page.waitForTimeout(350);
 await page.keyboard.press("Enter");
 let peak = 0;
-for (let i = 0; i < 30; i++) {
+for (let i = 0; i < 45; i++) {
 	await page.waitForTimeout(100);
 	peak = Math.max(peak, await page.evaluate(() => window.__peak()));
 }
