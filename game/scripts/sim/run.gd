@@ -36,7 +36,7 @@ const LOOK_KEY := {"head": "crown", "pattern": "hide"}
 
 var owned: Dictionary = {}  # id -> rank
 var order: Array = []  # acquisition order, for looks
-var attacks: Array = ["headbutt"]  # up to 2
+var attacks: Array = ["gulp"]  # up to 2
 var ultimate := ""
 var move := "scoot"
 var stats: Dictionary = {}
@@ -69,8 +69,8 @@ var _bonus := {}  # permanent point-of-interest bonuses
 func _init(gen: String = "pioneer", press: int = 0, rng: RandomNumberGenerator = null) -> void:
 	genetic = gen
 	pressure = press
-	owned = {"headbutt": 1, "scoot": 1}
-	order = ["headbutt", "scoot"]
+	owned = {"gulp": 1, "scoot": 1}
+	order = ["gulp", "scoot"]
 	var pool := Species.BOSS_POOL.duplicate()
 	if rng:
 		for i in range(pool.size() - 1, 0, -1):

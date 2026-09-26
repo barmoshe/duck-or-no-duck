@@ -119,12 +119,10 @@ func _draw() -> void:
 	var y0 := T
 	draw_texture(Icons.tex("hud_heart"), Vector2(L, y0))
 	Ui.wood_bar(self, Rect2(L + 13, y0, 84, 11), p.hp / maxf(1.0, p.max_hp), Color("e43b44"), "%d/%d" % [ceili(maxf(0.0, p.hp)), ceili(p.max_hp)])
-	draw_texture(Props.tex("mutagen"), Vector2(L + 1, y0 + 13))
-	Ui.text(self, Vector2(L + 12, y0 + 22), str(run.mutagen), Pal.c("green", 4))
-	var info_y := y0 + 23.0
+	var info_y := y0 + 14.0
 	if run.duck_parts() > 0:
 		info_y += 9
-		Ui.text(self, Vector2(L + 28, y0 + 22), "DUCK %d/8" % run.duck_parts(), Pal.c("gold", 3))
+		Ui.text(self, Vector2(L + 1, y0 + 22), "DUCK %d/8" % run.duck_parts(), Pal.c("gold", 3))
 	if world.ally_count() > 0:
 		info_y += 9
 		Ui.text(self, Vector2(L, info_y), "ALLIES %d/%d" % [world.ally_count(), int(run.stats["ally_max"])], Pal.c("pink", 3))
@@ -168,6 +166,10 @@ func _draw() -> void:
 		var pp := mr.position + p.position * k
 		draw_rect(Rect2(pp - Vector2(1, 1), Vector2(3, 3)), Color.WHITE)
 		draw_rect(Rect2(pp, Vector2(1, 1)), Pal.c("blue", 2))
+	# Mutagen, top right under the map (as in Crab)
+	var mt := Vector2(R - 2, T + ms + 13)
+	Ui.text(self, mt, str(run.mutagen), Color.WHITE, Ui.bold(), 16, 2)
+	draw_texture(Props.tex("mutagen"), Vector2(mt.x - Ui.text_w(Ui.bold(), str(run.mutagen), 16) - 12, mt.y - 11))
 	# pause button left of the map
 	pause_rect = Rect2(R - ms - 20, T, 15, 14)
 	Ui.wood(self, pause_rect)

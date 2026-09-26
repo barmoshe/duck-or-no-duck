@@ -4,7 +4,8 @@ extends RefCounted
 ## cooldown x(1 - 0.05(n-1)). "scale" picks the stat the damage comes from.
 
 const ATTACK := {
-	"headbutt": {"cd": 0.8, "range": 14.0, "kind": "melee", "scale": "physical", "coef": 1.0, "sfx": "thud"},
+	"gulp": {"cd": 0.75, "range": 20.0, "kind": "gulp", "scale": "physical", "coef": 1.1, "sfx": "chomp"},
+	"headbutt": {"cd": 0.9, "range": 14.0, "kind": "melee", "scale": "physical", "coef": 1.25, "knock": 110.0, "sfx": "thud"},
 	"jaws": {"cd": 0.85, "range": 16.0, "kind": "melee", "scale": "physical", "coef": 1.45, "sfx": "chomp"},
 	"tail_whip": {"cd": 1.6, "range": 28.0, "kind": "spin", "scale": "physical", "coef": 0.8, "knock": 120.0, "sfx": "whip"},
 	"spit": {"cd": 1.0, "range": 110.0, "kind": "proj", "scale": "ability", "coef": 0.9, "speed": 150.0, "ramp": "green", "sfx": "spit"},

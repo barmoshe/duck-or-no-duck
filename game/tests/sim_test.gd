@@ -37,7 +37,7 @@ func _logic() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
 	var r := Run.new("pioneer", 0, rng)
-	check(r.attacks == ["headbutt"] and r.move == "scoot", "Puddle hatches with Headbutt and Scoot")
+	check(r.attacks == ["gulp"] and r.move == "scoot", "Puddle hatches with Gulp and Scoot")
 	check(r.boss_order.size() == 4 and r.boss_order[3] == "great_mallard", "3 bosses then the Great Mallard: %s" % [r.boss_order])
 	check(float(r.stats["max_hp"]) == 50.0 and float(r.stats["speed"]) == 6.0, "Darwin's base line (+1 Speed from Pioneer)")
 	var bad := 0

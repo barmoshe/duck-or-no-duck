@@ -230,6 +230,8 @@ func brain(b: Actor, dt: float) -> void:
 	b.target = p
 	b.state = "chase"
 	var hurt := b.hp < b.max_hp * 0.5
+	if hurt and not b.has_meta("phase2"):
+		_enrage(b)
 	if b.has_meta("bonk"):
 		b.remove_meta("bonk")
 		if b.phase in ["charge", "roll", "hop"]:
@@ -243,7 +245,8 @@ func brain(b: Actor, dt: float) -> void:
 		b.boss_t += dt
 		b.desired = to.normalized() * (0.75 if hurt else 0.6)
 		b.under = false
-		if b.boss_t > (2.4 if hurt else 3.2) and b.stun <= 0.0:
+		var gap := (2.4 if hurt else 3.2) * (0.8 if w.run.pressure >= 3 else 1.0)
+		if b.boss_t > gap and b.stun <= 0.0:
 			b.boss_t = 0.0
 			b.boss_cycle += 1
 			_pick_phase(b)
@@ -340,8 +343,38 @@ func brain(b: Actor, dt: float) -> void:
 				b.phase = ""
 
 
+## Phase 2 at half HP: a banner, a tint, a longer and nastier pattern.
+func _enrage(b: Actor) -> void:
+	b.set_meta("phase2", true)
+	b.boss_cycle = 0
+	b.modulate = Color(1.2, 0.82, 0.82)
+	w.banner.emit("%s IS ENRAGED" % String(Species.get_def(b.species)["name"]).to_upper(), "Phase 2: new moves")
+	w.fx.ring(b.position, b.r, 90.0, 0.6, Pal.c("red", 3))
+	w.shake = 6.0
+	Sfx.play("boss", 1.2)
+
+
+const PHASE2 := {
+	"duckodile": ["windup_charge", "spit", "windup_charge", "summon"],
+	"quackaconda": ["spit", "flood", "windup_charge", "spit", "windup_ring"],
+	"mother_goose": ["windup_cone", "summon", "windup_charge", "windup_ring"],
+	"shelldrake": ["roll", "windup_ring", "spit"],
+	"duckaroo": ["hop", "hop", "hop", "windup_cone", "windup_ring"],
+	"great_mallard": ["windup_ring", "windup_charge", "summon", "spit", "windup_cone"],
+}
+
+
 func _pick_phase(b: Actor) -> void:
 	var c := b.boss_cycle
+	if b.has_meta("phase2") and PHASE2.has(b.species):
+		var seq: Array = PHASE2[b.species]
+		b.phase = String(seq[c % seq.size()])
+		b.phase_t = {"hop": 2.4, "roll": 3.2, "windup_ring": 0.8}.get(b.phase, 0.6)
+		if b.phase == "roll":
+			b.armor = float(Species.get_def(b.species).get("armor", 0.0)) * 3.0
+			b.start_dash((w.player.position - b.position).normalized() * 200.0, 0.9)
+		_telegraph(b)
+		return
 	match b.species:
 		"duckodile":
 			b.phase = ["windup_charge", "windup_charge", "summon"][c % 3]
@@ -370,5 +403,23 @@ func _pick_phase(b: Actor) -> void:
 			b.phase_t = 0.7
 			if b.phase == "windup_ring":
 				w.fx.mark(b.position, 40.0, 0.7, Pal.c("gold", 3))
+	_telegraph(b)
+
+
+## Every attack shows where it lands before it does.
+func _telegraph(b: Actor) -> void:
+	if w.run.pressure >= 3 and b.phase.begins_with("windup"):
+		b.phase_t *= 0.85
+	var to := (w.player.position - b.position).normalized()
+	var col := Color(Pal.c("red", 3), 0.55)
+	match b.phase:
+		"windup_charge":
+			w.fx.cone(b.position + Vector2(0, -b.r * 0.5), to, 200.0, 0.12, b.phase_t, col)
+		"windup_cone":
+			w.fx.cone(b.position + Vector2(0, -b.r), to, 130.0, 1.2, b.phase_t, col)
+		"spit":
+			w.fx.cone(b.position + Vector2(0, -b.r), to, 120.0, 0.9, b.phase_t, col)
+		"windup_ring":
+			w.fx.mark(b.position, 150.0 if b.species == "great_mallard" else 110.0, b.phase_t, Pal.c("red", 3))
 	if b.phase.begins_with("windup"):
 		b.hit_flash(Pal.c("red", 3))

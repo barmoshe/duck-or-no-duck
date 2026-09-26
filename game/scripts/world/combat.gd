@@ -110,6 +110,14 @@ func fire(id: String) -> bool:
 		"melee":
 			hit(t, dmg, p, {"bleed": float(spec.get("bleed", 0.0)), "slow": float(spec.get("slow", 0.0)), "knock": float(spec.get("knock", 0.0))})
 			w.fx.slash(t.position + Vector2(0, -t.r * 0.8), dir, t.r + 7.0)
+		"gulp":
+			# a short lunge and a gulp; a kill heals a little
+			p.start_dash(dir * 170.0, 0.07)
+			hit(t, dmg, p, {})
+			w.fx.slash(t.position + Vector2(0, -t.r * 0.8), dir, t.r + 6.0)
+			if t.hp <= 0.0:
+				p.hp = minf(p.max_hp, p.hp + 1.0 + w.run.level * 0.3)
+				w.fx.burst(p.position + Vector2(0, -p.r), Pal.e("leaf"), 4, 30.0)
 		"multi":
 			# capture the target by id: it may be freed before a later hit lands
 			var tid := t.get_instance_id()
@@ -280,6 +288,7 @@ func hit(t: Actor, amount: float, src: Actor, opts: Dictionary) -> void:
 		if w.rng.randf() * 100.0 < stat("crit"):
 			dmg *= 1.8
 			crit = true
+			w.hitstop = maxf(w.hitstop, 0.04)
 		if t.hp < t.max_hp * 0.5:
 			dmg *= 1.0 + stat("execute") / 100.0
 		if p.hp < p.max_hp * 0.5:

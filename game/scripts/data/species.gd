@@ -74,7 +74,7 @@ const ALL := {
 		"look": {"shape": "flat", "ramp": "moss", "accent": "coral", "size": 20, "mouth": "bill", "eyes": "angry", "armor": "spines", "legs": "stubby", "tail": "curl", "head": "horns"}},
 	"duckaroo": {"name": "Duckaroo", "biome": "any", "role": "boss", "hp": 1200, "dmg": 13, "speed": 52, "xp": 70, "boss": true,
 		"look": {"shape": "tall", "ramp": "orange", "accent": "sandy", "size": 19, "mouth": "bill", "eyes": "angry", "head": "ears", "legs": "frog", "tail": "long", "arms": "claws"}},
-	"great_mallard": {"name": "THE GREAT MALLARD", "biome": "any", "role": "boss", "hp": 3000, "dmg": 17, "speed": 44, "xp": 200, "swim": true, "boss": true,
+	"great_mallard": {"name": "THE GREAT MALLARD", "biome": "any", "role": "boss", "hp": 3000, "dmg": 14, "speed": 44, "xp": 200, "swim": true, "boss": true,
 		"look": {"shape": "duck", "ramp": "duck", "accent": "gold", "size": 27, "mouth": "bill", "eyes": "glow", "back": "wings_duck", "legs": "webbed", "tail": "curl", "pattern": "down", "head": "crest_duck"}},
 }
 

@@ -1127,6 +1127,9 @@ func _spawn_one(dmin: float, dmax: float) -> void:
 	var biome := map.biome_name_at(p)
 	var id := Species.pick(biome, run.minute(), run.is_night(), rng)
 	var d := Species.get_def(id)
+	# the first minute is a gentle nursery: no predators, so Puddle can eat and grow
+	if run.time < 60.0 and String(d.get("role", "")) == "predator":
+		return
 	var wet := map.water_at(p) != 0
 	if bool(d.get("water_only", false)) != wet and bool(d.get("water_only", false)):
 		return
@@ -1139,7 +1142,7 @@ func _spawn_one(dmin: float, dmax: float) -> void:
 func spawn_animal(id: String, p: Vector2, is_alpha: bool = false) -> Actor:
 	var a := Actor.new()
 	if Species.get_def(id).get("boss", false):
-		a.setup_animal(id, 1.0 + run.minute() * 0.08, 1.0 + run.minute() * 0.04, false)
+		a.setup_animal(id, 1.0 + run.minute() * 0.08, 1.0 + run.minute() * 0.025, false)
 	else:
 		a.setup_animal(id, strength(), dmg_strength(), is_alpha)
 	a.position = p
@@ -1152,7 +1155,14 @@ func spawn_animal(id: String, p: Vector2, is_alpha: bool = false) -> Actor:
 	return a
 
 
+const ALLY_HARD_CAP := 14
+
+
 func make_ally(a: Actor, life: float = -1.0) -> void:
+	# never more than a small herd: past the cap the newcomer just runs off
+	if ally_count() >= ALLY_HARD_CAP:
+		a.state = "flee"
+		return
 	a.is_ally = true
 	a.role = "ally"
 	a.asleep = false

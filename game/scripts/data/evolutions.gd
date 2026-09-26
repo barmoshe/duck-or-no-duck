@@ -18,8 +18,10 @@ const TYPE_NAMES := {"passive": "Passive", "attack": "Attack", "ultimate": "Ulti
 
 const ALL := {
 	# ------------------------------------------------------------ starters
-	"headbutt": {"name": "Headbutt", "type": "attack", "aff": "imposing", "rarity": 0, "max": 5, "starter": true,
-		"desc": "Bonk the nearest thing. Every blob starts here."},
+	"gulp": {"name": "Gulp", "type": "attack", "aff": "predator", "rarity": 0, "max": 5, "starter": true,
+		"desc": "Lunge and gulp the nearest thing. A kill heals you a little. Every blob starts here."},
+	"headbutt": {"name": "Headbutt", "type": "attack", "aff": "imposing", "rarity": 0, "max": 5,
+		"desc": "Bonk hard and knock things back."},
 	"scoot": {"name": "Scoot", "type": "move", "aff": "prey", "rarity": 0, "max": 1, "starter": true,
 		"desc": "A quick wiggle-dash."},
 	# ------------------------------------------------------------ attacks

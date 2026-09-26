@@ -570,6 +570,20 @@ const ALL := {
 		"...kkkkk.....",
 		".............",
 	],
+	"gulp": [
+		".............",
+		"...kkkkk.....",
+		".kktttttkk...",
+		"ktttwkttttk..",
+		"ktttkktkkkk..",
+		"kttttk.......",
+		"ktttk..w.w...",
+		"kttttk.......",
+		"ktttttkkkkk..",
+		".kTTTTTTTTk..",
+		"..kkkkkkkk...",
+		".............",
+	],
 }
 
 static var _cache := {}
