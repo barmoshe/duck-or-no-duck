@@ -22,6 +22,10 @@ func check(ok: bool, msg: String) -> void:
 func run(m: Node) -> void:
 	main = m
 	Game.save_enabled = false
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--balance="):
+			await _balance(int(a.substr(10)))
+			return
 	print("== logic")
 	_logic()
 	print("== food")
@@ -278,7 +282,7 @@ func _bot(w: World) -> Vector2:
 	return dir.limit_length(1.0)
 
 
-func _sim(seconds: float, start_at: float, label: String) -> void:
+func _sim(seconds: float, start_at: float, label: String) -> Dictionary:
 	main._start()
 	var w: World = main.world
 	w.auto_step = false
@@ -352,6 +356,35 @@ func _sim(seconds: float, start_at: float, label: String) -> void:
 	else:
 		check(bosses >= 1, "final: the Great Mallard hatched")
 	w.auto_step = true
+	var result := {"t": t, "level": r.level, "picks": picks, "bosses": bosses, "killed": r.bosses_killed,
+		"survived": r.bosses_survived, "won": r.won, "allies": w.ally_count(), "killer": String(w.get_meta("killed_by", "-"))}
 	if main.state != END:
 		main._end(false)
 	main._title()
+	return result
+
+
+## Balance report: n full bot runs (14 minutes) and n final-boss runs.
+func _balance(n: int) -> void:
+	print("== balance (%d runs)" % n)
+	var lv_at_end: Array = []
+	var first_boss := 0
+	var reached_final := 0
+	for i in n:
+		Game.rng.seed = 1000 + i
+		var res: Dictionary = await _sim(Run.FINAL_TIME, 0.0, "full %d" % i)
+		lv_at_end.append(res["level"])
+		if int(res["killed"]) + int(res["survived"]) >= 1:
+			first_boss += 1
+		if float(res["t"]) >= Run.FINAL_TIME - 1.0:
+			reached_final += 1
+	var wins := 0
+	var surv: Array = []
+	for i in n:
+		Game.rng.seed = 2000 + i
+		var res2: Dictionary = await _sim(170.0, Run.FINAL_TIME - 5.0, "final %d" % i)
+		surv.append(int(res2["t"]))
+		if res2["won"]:
+			wins += 1
+	print("BALANCE levels at end %s | got past boss 1: %d/%d | reached the final: %d/%d | final wins %d/%d, survived %s s" % [lv_at_end, first_boss, n, reached_final, n, wins, n, surv])
+	get_tree().quit(0)

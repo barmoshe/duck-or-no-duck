@@ -60,3 +60,23 @@ Our version:
 - **Compositor.** `Anatomy` normalizes a look, then stacks the parts at the current frame's sockets in z-order: far limbs, far wing, tail, body, hide, armor, near limbs, wing, crown, eyes, mouth, arms.
   - Parts inherit the body's color ramp, so a metamorphosis recolors everything.
   - Bosses are the same rigs at 2x.
+
+## v3 "reinvent" (2026-09-26)
+
+**Research** (search snippets; most wiki sites are blocked by the proxy):
+- Everything is Crab food: 3 types (fruit, meat, fish) x 4 rarities. Animal rolls are 75/19/5/1 and boss rolls 55/27/14/4. Common to epic food can turn into heart drops.
+- Sources: bushes and trees give fruit, fish pools give fish, animals give meat.
+- Diets: Carnivore, Piscivore, Herbivore, Vegan, Scavenger/Carrion, Ruminant, and a Feeding Speed stat.
+- Evolutions have levels 1-5, and rarity rises with the level. Cards show "Unlocks / Bans". Boss Fruit gives Branching Evolutions: Wings, Tentacles, Legs, Arms, Slithery, Ruminant, Alpha, Pollinator.
+- Genetics: pick 2 of 3 before a run.
+- Critics say you level up too often, the start is weak, and bosses never change.
+
+**What we changed:**
+1. **Food web** (`data/foods.gd`, `world.gd`): rarity rolls, hearts, shaking fruit sources, fish pools, carcasses you chew, contested by scavengers.
+2. **Evolution tree** (`data/evolutions.gd`): `locked`, `unlocks {level: [ids]}`, `excludes` (bans), and branches (`type: "branch"`). Branch parts are applied last in `Run._look`, so the body plan survives later picks.
+3. **Evolution screen** (`ui/level_up.gd`, `art/portrait.gd`): portraits crop `Anatomy.render` around the evolution's slot on the player's own creature.
+4. **Fewer, heavier level-ups:**
+   - `xp_need = 10 + 9L + 1.8L²`
+   - each level adds +6 HP, +0.6 Physical and +0.6 Ability
+5. **Starts and bosses:** Gulp as the starter, a nursery first minute, bosses enrage in phase 2 with telegraphs, and an ally hard cap of 14.
+6. **Meta:** Genetics pick 2 of 3, and the DUCK / NO DUCK verdict (5+ duck parts or Convergent).

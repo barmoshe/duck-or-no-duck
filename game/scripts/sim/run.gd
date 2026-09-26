@@ -161,7 +161,7 @@ func is_night() -> bool:
 
 ## Fewer, heavier level-ups than Crab: ~15 in a full run.
 func xp_need() -> float:
-	return 12.0 + level * 12.0 + level * level * 2.6
+	return 10.0 + level * 9.0 + level * level * 1.8
 
 
 ## Adds XP, returns how many level ups happened.
