@@ -86,6 +86,7 @@ func _ready() -> void:
 var _shot := ""
 var _shot_frames := 90
 var _shot_scene := "title"
+var _shot_attack := "jaws"
 
 
 func _shot_args() -> void:
@@ -96,6 +97,8 @@ func _shot_args() -> void:
 			_shot_frames = int(a.substr(9))
 		elif a.begins_with("--scene="):
 			_shot_scene = a.substr(8)
+		elif a.begins_with("--attack="):
+			_shot_attack = a.substr(9)
 	if _shot == "":
 		return
 	Game.save_enabled = false
@@ -144,6 +147,38 @@ func _shot_timer() -> void:
 			for k in 6:
 				var fd := world.spawn_food(world.player.position + Vector2(5 + k * 2, 2 - k), "fruit" if k % 2 == 0 else "meat", 3.0, k % 3)
 				fd["v"] = Vector2.ZERO
+		if _shot_scene == "attack" and state == S.RUN:
+			# one attack, fired at two stunned animals with its button held (the range marker)
+			var aid := _shot_attack
+			if i == 30:
+				for a in world.actors:
+					if not a.is_player and not a.dead:
+						a.position += Vector2(2000, 2000)
+				run.attacks = [aid]
+				var rch := world.combat.reach(aid)
+				for k in 2:
+					var foe := world.spawn_animal("stoat", world.player.position + Vector2(minf(rch * 0.55, 70.0) + k * 12.0, -6.0 + k * 12.0))
+					foe.stun = 60.0
+					foe.max_hp = 9999.0
+					foe.hp = 9999.0
+			if i >= _shot_frames - 14:
+				world.combat.tap(aid)  # main rewrites "held" from real input every frame; tap keeps the marker up
+			if i == _shot_frames - 5:
+				Engine.time_scale = 0.02  # the Xvfb renderer is slow: keep short animations alive
+			if i == _shot_frames - 4:
+				# fire now and freeze its animation a third of the way in, for review
+				hud.visible = false
+				world.combat.cds[aid] = 0.0
+				world.fx.anims.clear()
+				world.combat.fire(aid)
+				for q in world.combat.queued:
+					(q["fn"] as Callable).call()
+				world.combat.queued.clear()
+				world.combat.cds[aid] = 99.0
+			if i >= _shot_frames - 3:
+				# hold every animation a third of the way in until the shot is taken
+				for an in world.fx.anims:
+					an["t"] = float(an["dur"]) * 0.3
 		if _shot_scene == "shrooms" and i == _shot_frames - 25 and state == S.RUN:
 			# every mushroom look around Puddle, half of them known, one in reach (E prompt)
 			for sm in world.shrooms:

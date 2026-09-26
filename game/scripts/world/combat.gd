@@ -9,6 +9,8 @@ var w: World
 var cds := {}  # attack id -> seconds left
 var held := {}  # attack id -> its button is down: attack whenever it's ready
 var buffer := {}  # attack id -> seconds a press waits for the cooldown to end
+var shown := {}  # attack id -> seconds its range marker stays up after a press
+var zones: Array = []  # mud pools {p, r, t, slow}
 ## a press with nothing in reach swings at the air and is ready again this soon
 const WHIFF_CD := 0.3
 ## a press during the cooldown still goes off if the cooldown ends within this
@@ -29,6 +31,8 @@ func _init(world: World) -> void:
 
 func reset() -> void:
 	cds.clear()
+	zones.clear()
+	shown.clear()
 	held.clear()
 	buffer.clear()
 	ult_cd = 0.0
@@ -58,6 +62,7 @@ func step(dt: float) -> void:
 			var fn: Callable = queued[i]["fn"]
 			queued.remove_at(i)
 			fn.call()
+	_markers(dt)
 	if p.can_process() and p.stun <= 0.0 and not p.under and dive_t <= 0.0:
 		if not w.tips.has("attack") and not w.run.attacks.is_empty() and in_range(slot(0)):
 			w._tip("attack", "Tap your attack (or Q / R) to strike. It aims itself; hold to keep going")
@@ -73,6 +78,7 @@ func step(dt: float) -> void:
 				else:
 					cds[id] = WHIFF_CD
 	_animal_attacks(dt)
+	_zones(dt)
 	_shots(dt)
 	_specials(dt)
 
@@ -87,6 +93,7 @@ func slot(i: int) -> String:
 func tap(id: String) -> void:
 	if id != "":
 		buffer[id] = BUFFER
+		shown[id] = 0.4
 
 
 ## Holding an attack's button: it goes off every time it's ready.
@@ -100,10 +107,32 @@ func cd_of(id: String) -> float:
 	return float(Attacks.ATTACK[id]["cd"]) * Attacks.rank_cd(w.run.rank(id)) * float(w.run.stats["cd_mult"])
 
 
+## While an attack's button is down (and a moment after a press), its reach is drawn
+## around you in its shape and color, and the one it would hit gets a marker.
+func _markers(dt: float) -> void:
+	w.fx.ranges.clear()
+	var p := w.player
+	for id in w.run.attacks:
+		shown[id] = maxf(0.0, float(shown.get(id, 0.0)) - dt)
+		if not held.get(id, false) and float(shown[id]) <= 0.0:
+			continue
+		var spec: Dictionary = Attacks.ATTACK[id]
+		var rng := reach(id)
+		var t := best_target(p.position, rng)
+		w.fx.ranges.append({"shape": String(spec["shape"]), "p": p.position + Vector2(0, -p.r * 0.5), "dir": aim_dir(p.position, t),
+			"r": rng, "arc": deg_to_rad(float(spec.get("arc", 30.0))), "width": float(spec.get("width", 10.0)),
+			"c": _col(spec), "target": (t.position + Vector2(0, -t.r)) if t != null else Vector2.INF, "tr": t.r if t != null else 0.0,
+			"blast": float(spec.get("radius", 0.0)) * area()})
+
+
+## How far an attack reaches from your middle: its range, grown by Area, plus your body.
+func reach(id: String) -> float:
+	return float(Attacks.ATTACK[id]["range"]) * area() + w.player.r * 0.8
+
+
 ## Whether pressing this attack now would hit something (the bot uses this).
 func in_range(id: String) -> bool:
-	var spec: Dictionary = Attacks.ATTACK[id]
-	return best_target(w.player.position, float(spec["range"]) * area() + w.player.r * 0.8) != null
+	return best_target(w.player.position, reach(id)) != null
 
 
 ## Where an attack goes: at its target, else at the nearest enemy close by, else the
@@ -148,108 +177,274 @@ func power(scale: String) -> float:
 
 
 # ------------------------------------------------------------------ player attacks
+## Attacks that need something in reach; with nothing there they swing at the air.
+const NEEDS_TARGET := ["bite", "arc", "line", "lunge"]
+
+
 func fire(id: String) -> bool:
 	var spec: Dictionary = Attacks.ATTACK[id]
 	var p := w.player
-	var rng := float(spec["range"]) * area() + p.r * 0.8
+	var rng := reach(id)
+	var shape := String(spec["shape"])
 	var t := best_target(p.position, rng)
 	var dir := aim_dir(p.position, t)
 	p.face = signf(dir.x) if absf(dir.x) > 0.1 else p.face
-	p.bite_t = 0.18
-	if t == null and String(spec["kind"]) in ["melee", "gulp", "multi", "lunge", "charm"]:
+	if t == null and shape in NEEDS_TARGET:
 		# nothing in reach: a swing at the air, so the button always answers
+		p.bite_t = 0.15
 		w.fx.slash(p.position + dir * (p.r + 6.0) + Vector2(0, -p.r * 0.8), dir, 7.0, Color(1, 1, 1, 0.7), 0.14)
 		Sfx.play(String(spec.get("sfx", "chomp")), randf_range(1.15, 1.3), -12.0)
 		return false
-	var rk := w.run.rank(id)
-	var dmg := power(String(spec["scale"])) * float(spec["coef"]) * Attacks.rank_dmg(rk)
-	Sfx.play(String(spec.get("sfx", "chomp")), randf_range(0.9, 1.15), -3.0)
-	match String(spec["kind"]):
-		"melee":
-			hit(t, dmg, p, {"bleed": float(spec.get("bleed", 0.0)), "slow": float(spec.get("slow", 0.0)), "knock": float(spec.get("knock", 0.0))})
-			w.fx.slash(t.position + Vector2(0, -t.r * 0.8), dir, t.r + 7.0)
-		"gulp":
-			# a short lunge and a gulp; a kill heals a little
-			p.start_dash(dir * 170.0, 0.07)
-			hit(t, dmg, p, {})
-			w.fx.slash(t.position + Vector2(0, -t.r * 0.8), dir, t.r + 6.0)
-			if t.hp <= 0.0:
-				p.hp = minf(p.max_hp, p.hp + 1.0 + w.run.level * 0.3)
-				w.fx.burst(p.position + Vector2(0, -p.r), Pal.e("leaf"), 4, 30.0)
-		"multi":
-			# capture the target by id: it may be freed before a later hit lands
-			var tid := t.get_instance_id()
-			for k in int(spec["hits"]):
-				queued.append({"t": k * 0.09, "fn": func() -> void:
-					var tg = instance_from_id(tid)
-					if World.valid(tg):
-						hit(tg, dmg, p, {"slow": float(spec.get("slow", 0.0))})
-						w.fx.slash(tg.position + Vector2(randf_range(-3, 3), -tg.r * 0.8 + randf_range(-3, 3)), dir.rotated(randf_range(-0.6, 0.6)), tg.r + 4.0, Color.WHITE, 0.14)
-						w.fx.burst(tg.position + Vector2(0, -tg.r), Pal.c("snow", 4), 2, 30.0)})
-		"spin":
-			var rad := float(spec["range"]) * area() + p.r
-			for o in w.near(p.position, rad + 8.0):
-				var a: Actor = o
-				if World.hostile(p, a) and not a.asleep:
-					hit(a, dmg, p, {"knock": float(spec["knock"])})
-			w.fx.ring(p.position + Vector2(0, -p.r * 0.5), 4.0, rad, 0.25, Pal.c("snow", 4))
-		"proj":
-			_shoot(p.position + Vector2(0, -p.r), dir * float(spec["speed"]), dmg, false, spec)
-		"spread":
-			for k in int(spec["count"]) + (1 if rk >= 3 else 0):
-				var off := (k - (int(spec["count"]) - 1) * 0.5) * 0.22
-				_shoot(p.position + Vector2(0, -p.r), dir.rotated(off) * float(spec["speed"]), dmg, false, spec)
-		"lunge":
-			p.start_dash(dir * 260.0, minf(0.22, p.position.distance_to(t.position) / 260.0))
-			var lid := t.get_instance_id()
-			queued.append({"t": 0.12, "fn": func() -> void:
-				var tg = instance_from_id(lid)
-				if World.valid(tg) and tg.position.distance_to(p.position) < tg.r + p.r + 14.0:
-					hit(tg, dmg, p, {"knock": 160.0})
-					w.shake = maxf(w.shake, 2.0)})
-		"lob":
-			var s := _shoot(p.position + Vector2(0, -p.r), Vector2.ZERO, dmg, false, spec)
-			s["lob"] = true
-			s["from"] = p.position
-			s["to"] = t.position if t != null else p.position + dir * rng * 0.8
-			s["dur"] = 0.5
-			s["radius"] = float(spec["radius"]) * area()
-		"nova":
-			var rad2 := float(spec["range"]) * area() + p.r
-			for o in w.near(p.position, rad2):
-				var a2: Actor = o
-				if World.hostile(p, a2) and not a2.asleep:
-					hit(a2, dmg, p, {"slow": float(spec["slow"])})
-			w.fx.burst(p.position, Pal.c("brown", 2), 16, rad2 * 2.5, 2.0, 0.35)
-		"cone":
-			var ln := float(spec["range"]) * area() + p.r
-			for o in w.near(p.position, ln):
-				var a3: Actor = o
-				if World.hostile(p, a3) and absf(dir.angle_to(a3.position - p.position)) < 0.55 and not a3.asleep:
-					hit(a3, dmg, p, {"stun": float(spec["stun"])})
-			w.fx.cone(p.position + Vector2(0, -p.r * 0.6), dir, ln, 1.1, 0.3, Pal.c("gold", 4))
-			w.fx.text(p.position + dir * 14.0 + Vector2(0, -p.r * 2.0), "QUACK", Pal.c("gold", 4))
-		"charm":
-			if not t.is_boss and t.hp < t.max_hp * 0.45 and w.ally_count() < int(w.run.stats["ally_max"]):
-				w.make_ally(t)
-				w.fx.text(t.position + Vector2(0, -t.r * 2.5), "CHARMED", Pal.c("pink", 3))
-			else:
-				hit(t, dmg, p, {})
-				w.fx.burst(t.position + Vector2(0, -t.r), Pal.c("pink", 3), 4, 30.0)
+	var windup := float(spec.get("windup", 0.0))
+	p.bite_t = windup + 0.15
+	var dmg := power(String(spec["scale"])) * float(spec["coef"]) * Attacks.rank_dmg(w.run.rank(id))
+	var tid := t.get_instance_id() if t != null else 0
+	# the tell: a lean toward the target while the attack winds up
+	if windup > 0.05:
+		w.fx.anim("tell", p.position + Vector2(0, -p.r), dir, windup, _col(spec), p.r)
+	if shape in ["line", "arc"] and id != "peck_flurry":
+		p.start_dash(dir * 60.0, 0.05)
+	if windup > 0.0:
+		queued.append({"t": windup, "fn": func() -> void: _land(id, dir, tid, dmg)})
+	else:
+		_land(id, dir, tid, dmg)
 	return true
 
 
-func _shoot(from: Vector2, v: Vector2, dmg: float, hostile: bool, spec: Dictionary) -> Dictionary:
+func _col(spec: Dictionary) -> Color:
+	return Pal.e(String(spec.get("col", "white")))
+
+
+## The foes an attack of this shape catches, from your middle toward dir.
+func caught(shape: String, dir: Vector2, rng: float, spec: Dictionary) -> Array:
+	var p := w.player
+	var out: Array = []
+	var half := deg_to_rad(float(spec.get("arc", 180.0)))
+	var width := float(spec.get("width", 10.0))
+	for o in w.near(p.position, rng + 20.0):
+		var a: Actor = o
+		if not World.hostile(p, a) or a.asleep or a.dead or a.under:
+			continue
+		var to := a.position - p.position
+		var d := to.length() - a.r
+		if d > rng:
+			continue
+		match shape:
+			"arc", "cone":
+				# outside the wedge misses, unless it's right on top of you
+				if to.length() > (a.r + p.r) * 0.5 and absf(dir.angle_to(to)) > half:
+					continue
+			"line":
+				var along := to.dot(dir)
+				var side := absf(to.cross(dir))
+				if along < -a.r or side > width * 0.5 + a.r:
+					continue
+		out.append(a)
+	return out
+
+
+## The moment an attack lands, after its windup: what it hits and how it looks.
+func _land(id: String, dir: Vector2, tid: int, dmg: float) -> void:
+	var spec: Dictionary = Attacks.ATTACK[id]
+	var p := w.player
+	if not World.valid(p):
+		return
+	var rng := reach(id)
+	var shape := String(spec["shape"])
+	var col := _col(spec)
+	var t = instance_from_id(tid) if tid != 0 else null
+	if t != null and not World.valid(t):
+		t = null
+	# a bite whose target got away swings at the air
+	if shape in ["bite", "lunge"] and (t == null or (shape == "bite" and (t as Actor).position.distance_to(p.position) - (t as Actor).r > rng + 8.0)):
+		w.fx.slash(p.position + dir * (p.r + 6.0) + Vector2(0, -p.r * 0.8), dir, 7.0, Color(1, 1, 1, 0.7), 0.14)
+		return
+	if t != null:
+		dir = ((t as Actor).position - p.position).normalized()
+	Sfx.play(String(spec.get("sfx", "chomp")), randf_range(0.9, 1.15), -3.0)
+	var opts := {}
+	for k in ["knock", "stun", "slow", "bleed", "poison", "poison_t", "crit_bonus"]:
+		if spec.has(k):
+			opts[k] = spec[k]
+	match id:
+		"gulp":
+			var tg: Actor = t
+			p.start_dash(dir * 170.0, 0.07)
+			hit(tg, dmg, p, opts)
+			w.fx.anim("chomp", tg.position + Vector2(0, -tg.r * 0.8), dir, 0.2, col, tg.r)
+			if tg.hp <= 0.0:
+				p.hp = minf(p.max_hp, p.hp + 1.0 + w.run.level * 0.3)
+				w.fx.burst(p.position + Vector2(0, -p.r), Pal.e("leaf"), 4, 30.0)
+		"charm_song":
+			var tc: Actor = t
+			w.fx.anim("notes", p.position + Vector2(0, -p.r * 1.5), dir, 0.5, col, p.position.distance_to(tc.position))
+			if not tc.is_boss and tc.hp < tc.max_hp * 0.45 and w.ally_count() < int(w.run.stats["ally_max"]):
+				w.make_ally(tc)
+				w.fx.text(tc.position + Vector2(0, -tc.r * 2.5), "CHARMED", Pal.c("pink", 3))
+				w.fx.anim("hearts", tc.position + Vector2(0, -tc.r * 1.5), dir, 0.8, col, tc.r)
+			else:
+				hit(tc, dmg, p, {})
+		"constrict":
+			var th: Actor = t
+			var hold := float(spec["hold"])
+			th.stun = maxf(th.stun, hold * (0.3 if th.is_boss else 1.0))
+			w.fx.anim("coil", th.position + Vector2(0, -th.r * 0.6), dir, hold, col, th.r)
+			var hid := th.get_instance_id()
+			for k in int(spec["hits"]):
+				queued.append({"t": k * hold / float(spec["hits"]), "fn": func() -> void:
+					var tg = instance_from_id(hid)
+					if World.valid(tg):
+						hit(tg, dmg, p, {"bleed": float(spec["bleed"])})})
+		"charge":
+			var tl: Actor = t
+			var dist := minf(rng + 10.0, p.position.distance_to(tl.position) + tl.r + 8.0)
+			var dur := dist / 300.0
+			p.start_dash(dir * 300.0, dur)
+			p.invuln = maxf(p.invuln, dur + 0.1)
+			w.fx.anim("speed", p.position, dir, dur + 0.15, col, p.r)
+			var struck := {}
+			var steps := maxi(2, int(dur / 0.04))
+			for k in steps + 1:
+				queued.append({"t": k * dur / steps, "fn": func() -> void:
+					for o in w.near(p.position, p.r + 30.0):
+						var a: Actor = o
+						if World.hostile(p, a) and not a.asleep and not struck.has(a.get_instance_id()) and a.position.distance_to(p.position) < a.r + p.r + float(spec["width"]) * 0.5:
+							struck[a.get_instance_id()] = true
+							hit(a, dmg, p, {"knock": float(spec["knock"])})
+							w.fx.anim("bonk", a.position + Vector2(0, -a.r), dir, 0.3, col, a.r)
+							w.shake = maxf(w.shake, 2.5)})
+		"spit", "stinger", "feather_darts":
+			var n := int(spec.get("count", 1)) + (1 if id == "feather_darts" and w.run.rank(id) >= 3 else 0)
+			for k in n:
+				var off := (k - (n - 1) * 0.5) * 0.2
+				_shoot(p.position + Vector2(0, -p.r), dir.rotated(off) * float(spec["speed"]), dmg, false, spec, rng)
+		"egg_toss":
+			var to: Vector2 = (t as Actor).position if t != null else p.position + dir * rng * 0.8
+			var s := _shoot(p.position + Vector2(0, -p.r), Vector2.ZERO, dmg, false, spec, rng)
+			s["lob"] = true
+			s["from"] = p.position
+			s["to"] = to
+			s["dur"] = float(spec["flight"])
+			s["radius"] = float(spec["radius"]) * area()
+			w.fx.mark(to, float(s["radius"]), float(spec["flight"]), col)
+		_:
+			var hits := int(spec.get("hits", 1))
+			var foes := caught(shape, dir, rng, spec)
+			if shape == "line" and id != "headbutt" and not foes.is_empty():
+				# pecks and lashes find the first thing in the line
+				foes.sort_custom(func(a1: Actor, a2: Actor) -> bool: return a1.position.distance_to(p.position) < a2.position.distance_to(p.position))
+				foes = [foes[0]]
+			_anim_for(id, dir, rng, col, foes, spec)
+			for k in hits:
+				var ids: Array = []
+				for f in foes:
+					ids.append((f as Actor).get_instance_id())
+				queued.append({"t": k * (0.09 if id == "peck_flurry" else 0.12), "fn": func() -> void:
+					for fid in ids:
+						var tg = instance_from_id(fid)
+						if not World.valid(tg):
+							continue
+						var o2 := opts.duplicate()
+						var dd := dmg
+						if id == "jaws" and (tg as Actor).stun > 0.0:
+							dd *= 2.0
+							w.fx.text((tg as Actor).position + Vector2(0, -(tg as Actor).r * 2.6), "CRUNCH", Pal.e("white"))
+						if id == "tentacle_lash" and not (tg as Actor).is_boss:
+							(tg as Actor).vel += (p.position - (tg as Actor).position).normalized() * float(spec["pull"])
+						hit(tg, dd, p, o2)
+						if id == "peck_flurry":
+							w.fx.anim("peck", (tg as Actor).position + Vector2(randf_range(-3, 3), -(tg as Actor).r + randf_range(-3, 3)), dir, 0.12, col, 3.0)
+						if id == "kick":
+							_bowl(tg, dmg * float(spec["bowl"]), dir)})
+			if id == "mud_splash":
+				zones.append({"p": p.position, "r": rng, "t": float(spec["pool"]), "slow": float(spec["slow"])})
+
+
+## Each attack's own look at the moment it lands.
+func _anim_for(id: String, dir: Vector2, rng: float, col: Color, foes: Array, spec: Dictionary) -> void:
+	var p := w.player
+	var mid := p.position + Vector2(0, -p.r * 0.7)
+	var first: Actor = foes[0] if not foes.is_empty() else null
+	var at := (first.position + Vector2(0, -first.r * 0.8)) if first != null else mid + dir * rng * 0.7
+	match id:
+		"headbutt":
+			w.fx.anim("bonk", at, dir, 0.35, col, 6.0)
+			for f in foes:
+				w.fx.anim("dizzy", (f as Actor).position + Vector2(0, -(f as Actor).r * 2.2), dir, float(spec["stun"]) + 0.2, col, (f as Actor).r)
+		"jaws":
+			w.fx.anim("fangs", at, dir, 0.22, col, 9.0)
+		"tail_whip":
+			w.fx.anim("sweep", mid, dir, 0.25, col, rng)
+			p.face = -p.face
+		"peck_flurry":
+			w.fx.anim("beak", mid, dir, 0.3, col, rng)
+		"mud_splash":
+			w.fx.anim("mud", p.position, dir, float(spec["pool"]), col, rng)
+			w.fx.burst(p.position, Pal.c("brown", 2), 16, rng * 2.5, 2.0, 0.35)
+		"pincer_snap":
+			w.fx.anim("snip", at, dir, 0.3, col, 8.0)
+		"quack":
+			w.fx.anim("waves", mid, dir, 0.35, col, rng)
+			w.fx.text(mid + dir * 14.0 + Vector2(0, -p.r * 1.4), "QUACK", Pal.c("gold", 4))
+		"tentacle_lash":
+			w.fx.anim("lash", mid, dir, 0.3, col, (first.position.distance_to(p.position) if first != null else rng))
+		"kick":
+			w.fx.anim("kick", p.position + Vector2(0, -2), dir, 0.2, col, rng)
+			if first != null:
+				w.fx.anim("bonk", at, dir, 0.3, col, 5.0)
+		_:
+			w.fx.slash(at, dir, 8.0)
+
+
+## Kick: the target flies, and what it flies into gets hit too.
+func _bowl(t: Actor, dmg: float, dir: Vector2) -> void:
+	var tid := t.get_instance_id()
+	var struck := {tid: true}
+	for k in 4:
+		queued.append({"t": 0.06 + k * 0.07, "fn": func() -> void:
+			var tg = instance_from_id(tid)
+			if not World.valid(tg):
+				return
+			for o in w.near((tg as Actor).position, 30.0):
+				var a: Actor = o
+				if struck.has(a.get_instance_id()) or not World.hostile(w.player, a) or a.asleep:
+					continue
+				if a.position.distance_to((tg as Actor).position) < a.r + (tg as Actor).r + 2.0:
+					struck[a.get_instance_id()] = true
+					hit(a, dmg, w.player, {"knock": 120.0})
+					w.fx.anim("bonk", a.position + Vector2(0, -a.r), dir, 0.3, Pal.e("sand"), 5.0)})
+
+
+## Mud pools: whatever stands in one is slowed.
+func _zones(dt: float) -> void:
+	for i in range(zones.size() - 1, -1, -1):
+		var z: Dictionary = zones[i]
+		z["t"] = float(z["t"]) - dt
+		if float(z["t"]) <= 0.0:
+			zones.remove_at(i)
+			continue
+		for o in w.near(z["p"], float(z["r"]) + 10.0):
+			var a: Actor = o
+			if World.hostile(w.player, a) and a.position.distance_to(z["p"]) < float(z["r"]):
+				a.slow = maxf(a.slow if a.slow_t > 0.0 else 0.0, float(z["slow"]))
+				a.slow_t = maxf(a.slow_t, 0.3)
+
+
+func _shoot(from: Vector2, v: Vector2, dmg: float, hostile: bool, spec: Dictionary, rng: float = 0.0) -> Dictionary:
 	var n := Sprite2D.new()
 	var ramp := String(spec.get("ramp", "green"))
 	var texname: String = {"green": "glob_green", "purple": "glob_purple", "duck": "glob_duck", "red": "threat_glob"}.get(ramp, "glob_green")
-	if spec.get("kind", "") == "lob":
+	if spec.get("shape", "") == "lob":
 		texname = "egg"
 	n.texture = Props.tex(texname)
 	n.rotation = snappedf(v.angle(), PI / 4.0) if v.length() > 0.0 else 0.0
 	n.position = from
 	w.shots.add_child(n)
-	var s := {"n": n, "p": from, "v": v, "dmg": dmg, "life": 1.2, "hostile": hostile, "poison": float(spec.get("poison", 0.0)),
+	# a shot flies as far as its attack reaches, then drops
+	var life := 1.2 if rng <= 0.0 or v.length() <= 0.0 else rng / v.length()
+	var s := {"n": n, "p": from, "v": v, "dmg": dmg, "life": life, "hostile": hostile, "poison": float(spec.get("poison", 0.0)),
+		"poison_t": float(spec.get("poison_t", 3.0)), "splash": float(spec.get("splash", 0.0)), "pierce": int(spec.get("pierce", 0)),
+		"struck": {}, "col": String(spec.get("col", "white")),
 		"radius": 0.0, "lob": false, "t": 0.0, "dur": 0.0, "from": from, "to": from}
 	shots.append(s)
 	return s
@@ -272,6 +467,7 @@ func _shots(dt: float) -> void:
 					if (s["hostile"] and (a.is_player or a.is_ally)) or (not s["hostile"] and World.hostile(w.player, a)):
 						hit(a, float(s["dmg"]), w.player if not s["hostile"] else null, {})
 				w.fx.ring(pos, 2.0, rad, 0.3, Pal.c("snow", 4))
+				w.fx.anim("yolk", pos, Vector2.RIGHT, 0.5, Pal.e("lemon"), rad)
 				w.fx.burst(pos, Pal.c("gold", 3), 10, 60.0, 1.0, 0.4)
 				done = true
 		else:
@@ -287,8 +483,21 @@ func _shots(dt: float) -> void:
 					if not foe or a2.asleep:
 						continue
 					var body := a2.position + Vector2(0, -a2.r * 0.8)
-					if body.distance_to(s["p"]) < a2.r + 3.0:
-						hit(a2, float(s["dmg"]), null if s["hostile"] else w.player, {"poison": float(s["poison"])})
+					if body.distance_to(s["p"]) < a2.r + 3.0 and not (s["struck"] as Dictionary).has(a2.get_instance_id()):
+						(s["struck"] as Dictionary)[a2.get_instance_id()] = true
+						hit(a2, float(s["dmg"]), null if s["hostile"] else w.player, {"poison": float(s["poison"]), "poison_t": float(s["poison_t"])})
+						if not s["hostile"]:
+							var sc := Pal.e(String(s["col"]))
+							w.fx.anim("splat" if float(s["poison"]) <= 0.0 else "bubbles", body, (s["v"] as Vector2).normalized(), 0.4 if float(s["poison"]) <= 0.0 else float(s["poison_t"]), sc, a2.r)
+						# Spit: the glob splashes what's next to the target
+						if float(s["splash"]) > 0.0:
+							for o3 in w.near(a2.position, float(s["splash"]) + 12.0):
+								var a3: Actor = o3
+								if a3 != a2 and World.hostile(w.player, a3) and a3.position.distance_to(a2.position) < float(s["splash"]) + a3.r:
+									hit(a3, float(s["dmg"]) * 0.5, w.player, {})
+						if int(s["pierce"]) > 0:
+							s["pierce"] = int(s["pierce"]) - 1
+							continue
 						done = true
 						break
 		if done:
@@ -343,7 +552,7 @@ func hit(t: Actor, amount: float, src: Actor, opts: Dictionary) -> void:
 	var crit := false
 	var p := w.player
 	if src == p:
-		if w.rng.randf() * 100.0 < stat("crit"):
+		if w.rng.randf() * 100.0 < stat("crit") + float(opts.get("crit_bonus", 0.0)):
 			dmg *= 1.8
 			crit = true
 			w.hitstop = maxf(w.hitstop, 0.04)
@@ -393,7 +602,7 @@ func hit(t: Actor, amount: float, src: Actor, opts: Dictionary) -> void:
 		t.slow_t = 2.0
 	if float(opts.get("poison", 0.0)) > 0.0:
 		t.poison = maxf(t.poison, float(opts["poison"]) * (1.0 + stat("ability") * 0.03))
-		t.poison_t = 3.0
+		t.poison_t = maxf(t.poison_t, float(opts.get("poison_t", 3.0)))
 	if float(opts.get("bleed", 0.0)) > 0.0:
 		t.bleed_t = 3.0
 	var head := t.position + Vector2(0, -t.r * 2.0 - 2.0)

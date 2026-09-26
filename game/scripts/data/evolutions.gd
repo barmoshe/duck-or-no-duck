@@ -21,34 +21,34 @@ const ALL := {
 	"gulp": {"name": "Gulp", "type": "attack", "aff": "predator", "rarity": 0, "max": 5, "starter": true,
 		"desc": "Lunge and gulp the nearest thing. A kill heals you a little. Every blob starts here."},
 	"headbutt": {"name": "Headbutt", "type": "attack", "aff": "imposing", "rarity": 0, "max": 5,
-		"desc": "Bonk hard and knock things back."},
+		"desc": "Bonk what's straight ahead: knockback and a short stun."},
 	"scoot": {"name": "Scoot", "type": "move", "aff": "prey", "rarity": 0, "max": 1, "starter": true,
 		"desc": "A quick wiggle-dash."},
 	# ------------------------------------------------------------ attacks
 	"tail_whip": {"name": "Tail Whip", "type": "attack", "aff": "imposing", "rarity": 0, "max": 5, "look": {"tail": "whip"},
 		"desc": "Spin and smack everything around you. Knocks back."},
 	"spit": {"name": "Spit", "type": "attack", "aff": "trickster", "rarity": 0, "max": 5, "unlocks": {3: ["venom_glands"]},
-		"desc": "Spit a glob at range. Scales with Ability."},
+		"desc": "Spit a glob far away; it splashes what's next to the target. Scales with Ability."},
 	"charge": {"name": "Charge", "type": "attack", "aff": "imposing", "rarity": 1, "max": 5, "look": {"head": "horns"},
-		"desc": "Lunge into a target for heavy Physical damage."},
+		"desc": "Charge down a line, hitting all in your path. Nothing can hurt you while you charge."},
 	"jaws": {"name": "Jaws", "type": "attack", "aff": "predator", "rarity": 0, "max": 5, "unlocks": {3: ["bloodlust"]}, "look": {"mouth": "fangs"},
-		"desc": "A real bite. Hits harder than a headbutt."},
+		"desc": "A real bite in a wide swipe. Double damage to stunned animals."},
 	"stinger": {"name": "Stinger", "type": "attack", "aff": "trickster", "rarity": 1, "max": 5, "unlocks": {2: ["venom_glands"]}, "look": {"tail": "stinger"},
-		"desc": "Fire a dart that poisons."},
+		"desc": "Fire a fast dart from far away that poisons for 5 seconds."},
 	"peck_flurry": {"name": "Peck Flurry", "type": "attack", "aff": "predator", "rarity": 1, "max": 5, "look": {"mouth": "beak"},
-		"desc": "Three fast pecks."},
+		"desc": "Three fast pecks at long reach, each with +10% crit chance."},
 	"egg_toss": {"name": "Egg Toss", "type": "attack", "aff": "gregarious", "rarity": 1, "max": 5,
-		"desc": "Lob an egg that bursts in an area."},
+		"desc": "Lob an egg that bursts in an area. You see where it will land."},
 	"mud_splash": {"name": "Mud Splash", "type": "attack", "aff": "prey", "rarity": 0, "max": 5,
-		"desc": "Splash mud around you: damage and slow."},
+		"desc": "Splash mud around you: damage, slow, and a mud pool that keeps slowing."},
 	"pincer_snap": {"name": "Pincer Snap", "type": "attack", "aff": "predator", "rarity": 2, "max": 5, "locked": true, "look": {"arms": "claws"},
-		"desc": "Huge snap that makes targets bleed. Wrong game, still great."},
+		"desc": "Snip twice in a narrow swipe; targets bleed. Wrong game, still great."},
 	"charm_song": {"name": "Charm Song", "type": "attack", "aff": "gregarious", "rarity": 1, "max": 5, "unlocks": {2: ["pack_call"]}, "look": {"head": "frill"},
 		"desc": "Sing to a weakened animal: it joins you as an ally."},
 	"quack": {"name": "Quack", "type": "attack", "aff": "duck", "rarity": 1, "max": 5, "locked": true, "look": {"mouth": "bill"},
-		"desc": "A cone of QUACK. Damages and stuns."},
+		"desc": "A long cone of QUACK. Damages and stuns."},
 	"feather_darts": {"name": "Feather Darts", "type": "attack", "aff": "duck", "rarity": 2, "max": 5, "locked": true, "look": {"back": "wings_duck"},
-		"desc": "Fire a spread of sharp feathers."},
+		"desc": "Fire a spread of feathers; each goes through one animal."},
 	# ------------------------------------------------------------ ultimates
 	"mega_quack": {"name": "Mega Quack", "type": "ultimate", "aff": "duck", "rarity": 2, "max": 3, "locked": true, "look": {"mouth": "bill"},
 		"desc": "A screen-shaking QUACK: big damage, long stun."},
@@ -188,11 +188,11 @@ const ALL := {
 		"stats": {"physical": 8.0, "crit": 10.0}, "desc": "+8 Physical, +10% critical chance."},
 	# ------------------------------------------------------------ unlocked by branches
 	"tentacle_lash": {"name": "Tentacle Lash", "type": "attack", "aff": "trickster", "rarity": 1, "max": 5, "locked": true, "look": {"arms": "tentacles_big"},
-		"desc": "Two quick lashes that slow what they hit."},
+		"desc": "Two lashes that slow and pull targets to you."},
 	"kick": {"name": "Kick", "type": "attack", "aff": "predator", "rarity": 0, "max": 5, "locked": true, "look": {"legs": "long"},
-		"desc": "A strong kick that sends targets flying."},
+		"desc": "A wide kick that sends targets flying into other animals."},
 	"constrict": {"name": "Constrict", "type": "attack", "aff": "imposing", "rarity": 1, "max": 5, "locked": true, "look": {"tail": "serpent"},
-		"desc": "Squeeze: damage, bleed and a heavy slow."},
+		"desc": "Grab one target, hold it still and squeeze four times; it bleeds."},
 	"sprint": {"name": "Sprint", "type": "move", "aff": "predator", "rarity": 0, "max": 1, "locked": true, "look": {"legs": "long"},
 		"desc": "A long, fast dash."},
 	"suckers": {"name": "Suckers", "type": "passive", "aff": "trickster", "rarity": 1, "max": 5, "locked": true, "look": {"arms": "tentacles_big"},
@@ -304,6 +304,8 @@ static func lines(id: String, cur: int) -> Array:
 		var a: Dictionary = Attacks.ATTACK[id]
 		out.append(["Damage", "" if cur == 0 else "x%.2f" % Attacks.rank_dmg(cur), "x%.2f" % Attacks.rank_dmg(cur + 1)])
 		out.append(["Cooldown", "" if cur == 0 else "%.2fs" % (float(a["cd"]) * Attacks.rank_cd(cur)), "%.2fs" % (float(a["cd"]) * Attacks.rank_cd(cur + 1))])
+		out.append(["Range", "", "%.1f u %s" % [Attacks.range_u(id), String(Attacks.SHAPE_NAME[String(a["shape"])]).to_lower()]])
+		out.append(["Speed", "", Attacks.speed_name(id)])
 	elif t == "ultimate" and Attacks.ULT.has(id):
 		var ucd := float(Attacks.ULT[id]["cd"])
 		out.append(["Cooldown", "" if cur == 0 else "%ds" % int(ucd * (1.0 - 0.08 * (cur - 1))), "%ds" % int(ucd * (1.0 - 0.08 * cur))])

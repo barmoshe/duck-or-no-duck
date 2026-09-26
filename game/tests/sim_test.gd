@@ -383,7 +383,13 @@ func _food() -> void:
 	for sm in w.shrooms:
 		(sm["n"] as Node).queue_free()
 	w.shrooms.clear()
-	# attacks: you press them, they aim themselves
+	# attacks: you press them, they aim themselves. A level-up from the mushrooms above
+	# may have opened its screen and paused the game: close it first.
+	w.pending_ups = 0
+	main.levelup.hide_screen()
+	main.poi_screen.hide_screen()
+	main.get_tree().paused = false
+	main._set_state(main.S.RUN)
 	var a0 := w.combat.slot(0)
 	check(a0 != "", "you start with an attack in slot 1 (%s)" % a0)
 	var foe: Actor = w.spawn_animal("stoat", w.player.position + Vector2(w.player.r + 6.0, 0))
@@ -424,6 +430,63 @@ func _food() -> void:
 	w.combat.tap(a0)
 	w.combat.step(0.016)
 	check(foe.hp == last and is_equal_approx(float(w.combat.cds[a0]), Combat.WHIFF_CD), "with nothing in reach it swings at the air and is ready again soon")
+	# every attack: its own shape, reach and cooldown, and each one lands
+	var saved_attacks: Array = main.run.attacks.duplicate()
+	var home: Vector2 = w.player.position
+	for aid in Attacks.ATTACK:
+		var spec: Dictionary = Attacks.ATTACK[aid]
+		check(spec.has("shape") and spec.has("range") and spec.has("cd") and Attacks.TRAIT.has(aid), "%s has a shape, range, cooldown and trait" % aid)
+		main.run.attacks = [aid]
+		w.player.position = home
+		w.player.invuln = 0.0
+		# fire along a line with no wall in the way (shots stop at walls)
+		var gap := minf(w.combat.reach(aid) * 0.6, 60.0)
+		var way := Vector2.RIGHT
+		for k in 16:
+			var cand := Vector2.from_angle(k * TAU / 16.0)
+			var open := true
+			for j in 13:
+				if w.map.is_wall(home + cand * gap * j / 12.0):
+					open = false
+					break
+			if open:
+				way = cand
+				break
+		foe.position = home + way * gap
+		foe.vel = Vector2.ZERO
+		foe.stun = 30.0
+		foe.hp = 9999.0
+		foe.is_ally = false
+		w._rebuild_grid()
+		w.combat.cds[aid] = 0.0
+		w.combat.tap(aid)
+		for i in 40:
+			w.player.tick(0.05)
+			w.combat.step(0.05)
+		var landed: bool = foe.hp < 9999.0 or (aid == "charm_song" and foe.is_ally)
+		check(landed, "%s lands on a target %d px away (reach %d)" % [aid, roundi(foe.position.distance_to(home)), roundi(w.combat.reach(aid))])
+	main.run.attacks = saved_attacks
+	w.player.position = home
+	foe.is_ally = false
+	# Jaws: double damage to stunned; its swipe misses what's behind you
+	main.run.attacks = ["jaws"]
+	var jspec: Dictionary = Attacks.ATTACK["jaws"]
+	foe.position = home + Vector2(-w.player.r - 6.0, 0)
+	w._rebuild_grid()
+	check(not w.combat.caught("arc", Vector2.RIGHT, w.combat.reach("jaws"), jspec).has(foe), "a swipe doesn't hit what's behind you")
+	foe.position = home + Vector2(w.player.r + 6.0, 0)
+	w._rebuild_grid()
+	check(w.combat.caught("arc", Vector2.RIGHT, w.combat.reach("jaws"), jspec).has(foe), "a swipe hits what's in front")
+	# shots fly as far as their attack reaches
+	var sh: Dictionary = w.combat._shoot(home, Vector2(170, 0), 1.0, false, Attacks.ATTACK["spit"], w.combat.reach("spit"))
+	check(is_equal_approx(float(sh["life"]) * 170.0, w.combat.reach("spit")), "a shot stops at its range")
+	# Mud Splash leaves a pool that slows
+	w.combat.zones.append({"p": foe.position, "r": 20.0, "t": 1.0, "slow": 0.5})
+	foe.slow_t = 0.0
+	w.combat._zones(0.05)
+	check(foe.slow_t > 0.0 and foe.slow >= 0.5, "a mud pool slows what stands in it")
+	w.combat.zones.clear()
+	main.run.attacks = saved_attacks
 	foe.hp = 0.0
 	w._reap()
 	# kills drop pieces of food, big ones more, and no carcass
