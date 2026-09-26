@@ -1,7 +1,7 @@
 # Duck or no duck ?! — STATUS
 
 - Updated: 2026-09-26 (v7.2)
-- Live: https://duck-or-no-duck.vercel.app (Vercel project `duck-or-no-duck`, git-linked, serves `public/`)
+- Live: https://duck-or-no-duck.vercel.app (Vercel project `duck-or-no-duck`, git-linked, serves `public/`). v7.2 is live: build f304172, deployed from main 3b89a54 on 2026-09-26.
 
 ## Where we are
 v0.3 "reinvent" build, playable end to end. Headless tests, a balance report and a browser webtest all pass.
