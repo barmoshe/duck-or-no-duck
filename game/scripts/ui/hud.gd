@@ -148,14 +148,8 @@ func _draw() -> void:
 	if world.deaf > 0.0:
 		Ui.text(self, Vector2(s.get_center().x, s.end.y - 54), "EARS RINGING", Pal.c("snow", 4), Ui.small(), 8, 1)
 
-	# --- attacks: framed icon slots, bottom left, dark while cooling down
-	var ss := 20.0
+	# the attacks are buttons now (TouchControls, bottom right), with their cooldowns
 	var ax := L
-	for id in run.attacks:
-		var cd := float(world.combat.cds.get(id, 0.0))
-		var mx := float(Attacks.ATTACK[id]["cd"]) * Attacks.rank_cd(run.rank(id)) * float(run.stats["cd_mult"])
-		Ui.slot(self, Rect2(ax, s.end.y - ss, ss, ss), Icons.tex(id), cd / maxf(0.01, mx))
-		ax += ss + 3.0
 
 	# --- XP: the fruit with the level on it and a framed bar, bottom center
 	var xl := maxf(ax + 16.0, s.position.x + s.size.x * 0.22)

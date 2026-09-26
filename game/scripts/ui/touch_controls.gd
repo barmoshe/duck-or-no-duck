@@ -1,14 +1,16 @@
 class_name TouchControls
 extends Control
-## Floating joystick (any touch that isn't a button, left 60% preferred) plus DASH and
-## ULTIMATE buttons in the right thumb zone, and Crab's E button above them while there
-## is something to use (a mushroom to eat, a ? spot to look at). Raw multi-touch in _input; touch ids are
+## Floating joystick (any touch that isn't a button, left 60% preferred) plus, in the
+## right thumb zone, the two ATTACK buttons (bottom row: tap to strike, hold to keep
+## striking; the aim is automatic), DASH and ULTIMATE above them, and Crab's E button
+## beside them while there is something to use (a mushroom to eat, a ? spot to look at). Raw multi-touch in _input; touch ids are
 ## tracked per finger with no assumptions about their values (iOS sends huge ones).
 ## Mouse drag works on desktop; touch-emulated mouse events are ignored.
 
 signal move_pressed
 signal ult_pressed
 signal act_pressed
+signal attack_pressed(slot: int)
 
 const STICK_R := 22.0
 const BTN_R := 15.0
@@ -23,7 +25,10 @@ var btns := {
 	"move": {"label": "", "id": "", "cd": 0.0, "max": 1.0, "pos": Vector2.ZERO, "pressed": 0.0},
 	"ult": {"label": "", "id": "", "cd": 0.0, "max": 1.0, "pos": Vector2.ZERO, "pressed": 0.0},
 	"act": {"label": "", "id": "key_e", "cd": 0.0, "max": 1.0, "pos": Vector2.ZERO, "pressed": 0.0},
+	"a0": {"label": "", "id": "", "cd": 0.0, "max": 1.0, "pos": Vector2.ZERO, "pressed": 0.0},
+	"a1": {"label": "", "id": "", "cd": 0.0, "max": 1.0, "pos": Vector2.ZERO, "pressed": 0.0},
 }
+var holding := {}  # button key -> the touch id holding it down
 var blocked: Array[Rect2] = []
 var hint_t := 0.0
 
@@ -36,16 +41,22 @@ func _ready() -> void:
 func reset() -> void:
 	vector = Vector2.ZERO
 	stick_on = false
+	holding.clear()
 
 
 func _layout() -> void:
 	var s := Game.safe_rect(size)
-	btns["move"]["pos"] = (Vector2(s.end.x - 22, s.end.y - 36)).floor()
-	btns["ult"]["pos"] = (Vector2(s.end.x - 58, s.end.y - 27)).floor()
-	btns["act"]["pos"] = (Vector2(s.end.x - 44, s.end.y - 70)).floor()
-	if size.x < size.y:
-		btns["ult"]["pos"] = (Vector2(s.end.x - 26, s.end.y - 62)).floor()
-		btns["act"]["pos"] = (Vector2(s.end.x - 58, s.end.y - 44)).floor()
+	# attacks along the bottom (the thumb rests there), dash and ultimate above, E beside
+	btns["a0"]["pos"] = (Vector2(s.end.x - 22, s.end.y - 28)).floor()
+	btns["a1"]["pos"] = (Vector2(s.end.x - 56, s.end.y - 28)).floor()
+	btns["move"]["pos"] = (Vector2(s.end.x - 22, s.end.y - 70)).floor()
+	btns["ult"]["pos"] = (Vector2(s.end.x - 56, s.end.y - 70)).floor()
+	btns["act"]["pos"] = (Vector2(s.end.x - 90, s.end.y - 49)).floor()
+
+
+## Whether a button is being held down right now.
+func is_held(k: String) -> bool:
+	return holding.has(k)
 
 
 func _process(dt: float) -> void:
@@ -89,12 +100,16 @@ func _touch(idx: int, pressed: bool, p: Vector2) -> void:
 		var b := _hit(p)
 		if b != "":
 			btns[b]["pressed"] = 1.0
-			if b == "move":
-				move_pressed.emit()
-			elif b == "act":
-				act_pressed.emit()
-			else:
-				ult_pressed.emit()
+			holding[b] = idx
+			match b:
+				"move":
+					move_pressed.emit()
+				"act":
+					act_pressed.emit()
+				"a0", "a1":
+					attack_pressed.emit(int(b.substr(1)))
+				_:
+					ult_pressed.emit()
 			return
 		if not stick_on:
 			stick_on = true
@@ -103,9 +118,13 @@ func _touch(idx: int, pressed: bool, p: Vector2) -> void:
 			knob = p
 			vector = Vector2.ZERO
 			hint_t = 999.0
-	elif stick_on and idx == stick_id:
-		stick_on = false
-		vector = Vector2.ZERO
+	else:
+		for k in holding.keys():
+			if holding[k] == idx:
+				holding.erase(k)
+		if stick_on and idx == stick_id:
+			stick_on = false
+			vector = Vector2.ZERO
 
 
 func _drag(idx: int, p: Vector2) -> void:
@@ -146,7 +165,7 @@ func _draw() -> void:
 			continue
 		var pos: Vector2 = b["pos"]
 		var rdy := float(b["cd"]) <= 0.0
-		var off := Vector2(0, 1) * float(b["pressed"])
+		var off := Vector2(0, 1) * maxf(float(b["pressed"]), 1.0 if holding.has(k) else 0.0)
 		var rr := BTN_R
 		var c := (pos + off).floor()
 		# a round wooden button: dark outline, tan rim, parchment face with the icon
@@ -155,7 +174,7 @@ func _draw() -> void:
 		draw_circle(c, rr, Ui.WOOD)
 		draw_arc(c, rr - 0.5, PI * 1.1, PI * 1.9, 12, Ui.WOOD_HI, 1.0)
 		draw_circle(c, rr - 3.0, Ui.WOOD_OUT)
-		draw_circle(c, rr - 4.0, (Ui.PARCHMENT if k in ["move", "act"] else Color("feae34")) if rdy else Color("8b9bb4"))
+		draw_circle(c, rr - 4.0, (Ui.PARCHMENT if k in ["move", "act"] else (Pal.e("peach") if k in ["a0", "a1"] else Color("feae34"))) if rdy else Color("8b9bb4"))
 		var ic := Icons.tex(String(b.get("id", "")))
 		var isz := ic.get_size()
 		draw_texture(ic, (c - isz * 0.5).floor() + Vector2(1, 0), Color.WHITE if rdy else Color(1, 1, 1, 0.6))

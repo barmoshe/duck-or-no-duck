@@ -58,6 +58,7 @@ func _ready() -> void:
 	controls.move_pressed.connect(func() -> void: world.combat.use_move())
 	controls.ult_pressed.connect(func() -> void: world.combat.use_ult())
 	controls.act_pressed.connect(func() -> void: world.interact())
+	controls.attack_pressed.connect(func(i: int) -> void: world.combat.tap(world.combat.slot(i)))
 	root.add_child(controls)
 	levelup = LevelUpScreen.new()
 	levelup.picked.connect(_on_picked)
@@ -181,7 +182,7 @@ func _shot_timer() -> void:
 func _setup_input() -> void:
 	var map := {
 		"left": [KEY_A, KEY_LEFT], "right": [KEY_D, KEY_RIGHT], "up": [KEY_W, KEY_UP], "down": [KEY_S, KEY_DOWN],
-		"ult": [KEY_SPACE, KEY_K], "move_ab": [KEY_SHIFT, KEY_J], "pause": [KEY_ESCAPE, KEY_P], "interact": [KEY_E],
+		"ult": [KEY_SPACE, KEY_K], "move_ab": [KEY_SHIFT, KEY_J], "pause": [KEY_ESCAPE, KEY_P], "interact": [KEY_E], "attack_0": [KEY_Q, KEY_U], "attack_1": [KEY_R, KEY_I],
 	}
 	for action in map:
 		if not InputMap.has_action(action):
@@ -222,6 +223,12 @@ func _process(dt: float) -> void:
 				world.combat.use_move()
 			if Input.is_action_just_pressed("interact"):
 				world.interact()
+			# attacks go off when pressed (hold to keep attacking); they aim themselves
+			for i in 2:
+				var aid := world.combat.slot(i)
+				if Input.is_action_just_pressed("attack_%d" % i):
+					world.combat.tap(aid)
+				world.combat.hold(aid, Input.is_action_pressed("attack_%d" % i) or controls.is_held("a%d" % i))
 			_buttons()
 			if world.bosses.active():
 				Sfx.music("boss")
@@ -252,6 +259,13 @@ func _buttons() -> void:
 	controls.btns["ult"]["id"] = ul
 	controls.btns["ult"]["cd"] = world.combat.ult_cd
 	controls.btns["ult"]["max"] = world.combat.ult_max()
+	for i in 2:
+		var aid := world.combat.slot(i)
+		var b: Dictionary = controls.btns["a%d" % i]
+		b["label"] = _short(aid)
+		b["id"] = aid
+		b["cd"] = float(world.combat.cds.get(aid, 0.0)) if aid != "" else 0.0
+		b["max"] = world.combat.cd_of(aid) if aid != "" else 1.0
 	var act := world.interact_target()
 	controls.btns["act"]["label"] = "" if act.is_empty() else ("EAT" if String(act["kind"]) == "shroom" else "LOOK")
 	controls.blocked = [hud.pause_rect]

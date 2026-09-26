@@ -1,11 +1,18 @@
 class_name Combat
 extends RefCounted
-## Fighting: the player's equipped attacks fire on their own at the best target in range
-## (the mobile answer to Crab's twin-stick aim), projectiles, animal bites with a short
-## readable wind-up, ultimates, movement abilities, and the one damage function.
+## Fighting: the player's equipped attacks fire when you press their button (hold to
+## keep attacking) and aim themselves at the best target in range (the mobile answer to
+## Crab's twin-stick aim), projectiles, animal bites with a short readable wind-up,
+## ultimates, movement abilities, and the one damage function.
 
 var w: World
 var cds := {}  # attack id -> seconds left
+var held := {}  # attack id -> its button is down: attack whenever it's ready
+var buffer := {}  # attack id -> seconds a press waits for the cooldown to end
+## a press with nothing in reach swings at the air and is ready again this soon
+const WHIFF_CD := 0.3
+## a press during the cooldown still goes off if the cooldown ends within this
+const BUFFER := 0.25
 var ult_cd := 0.0
 var move_cd := 0.0
 var shots: Array = []  # {n, p, v, dmg, life, hostile, poison, radius, lob, t, dur, from, to, pierce}
@@ -22,6 +29,8 @@ func _init(world: World) -> void:
 
 func reset() -> void:
 	cds.clear()
+	held.clear()
+	buffer.clear()
 	ult_cd = 0.0
 	move_cd = 0.0
 	for s in shots:
@@ -50,17 +59,63 @@ func step(dt: float) -> void:
 			queued.remove_at(i)
 			fn.call()
 	if p.can_process() and p.stun <= 0.0 and not p.under and dive_t <= 0.0:
+		if not w.tips.has("attack") and not w.run.attacks.is_empty() and in_range(slot(0)):
+			w._tip("attack", "Tap your attack (or Q / R) to strike. It aims itself; hold to keep going")
 		for id in w.run.attacks:
 			cds[id] = maxf(0.0, float(cds.get(id, 0.0)) - dt)
-			if float(cds[id]) <= 0.0:
+			buffer[id] = maxf(0.0, float(buffer.get(id, 0.0)) - dt)
+			if float(cds[id]) <= 0.0 and (held.get(id, false) or float(buffer[id]) > 0.0):
+				buffer[id] = 0.0
 				if fire(id):
-					var rk := w.run.rank(id)
-					cds[id] = float(Attacks.ATTACK[id]["cd"]) * Attacks.rank_cd(rk) * float(w.run.stats["cd_mult"])
+					cds[id] = cd_of(id)
 					if w.rng.randf() * 100.0 < stat("echo"):
 						queued.append({"t": 0.18, "fn": func() -> void: fire(id)})
+				else:
+					cds[id] = WHIFF_CD
 	_animal_attacks(dt)
 	_shots(dt)
 	_specials(dt)
+
+
+# ------------------------------------------------------------------ pressing attacks
+## The attack in slot i (0 or 1), or "".
+func slot(i: int) -> String:
+	return String(w.run.attacks[i]) if i < w.run.attacks.size() else ""
+
+
+## A tap on an attack's button: it goes off now, or as soon as its cooldown ends.
+func tap(id: String) -> void:
+	if id != "":
+		buffer[id] = BUFFER
+
+
+## Holding an attack's button: it goes off every time it's ready.
+func hold(id: String, on: bool) -> void:
+	if id != "":
+		held[id] = on
+
+
+## Seconds between two uses of an attack.
+func cd_of(id: String) -> float:
+	return float(Attacks.ATTACK[id]["cd"]) * Attacks.rank_cd(w.run.rank(id)) * float(w.run.stats["cd_mult"])
+
+
+## Whether pressing this attack now would hit something (the bot uses this).
+func in_range(id: String) -> bool:
+	var spec: Dictionary = Attacks.ATTACK[id]
+	return best_target(w.player.position, float(spec["range"]) * area() + w.player.r * 0.8) != null
+
+
+## Where an attack goes: at its target, else at the nearest enemy close by, else the
+## way you're walking (or facing).
+func aim_dir(from: Vector2, t: Actor) -> Vector2:
+	if t != null:
+		return (t.position - from).normalized()
+	var n := best_target(from, 160.0)
+	if n != null:
+		return (n.position - from).normalized()
+	var p := w.player
+	return p.desired.normalized() if p.desired.length() > 0.1 else Vector2(p.face, 0)
 
 
 # ------------------------------------------------------------------ targeting
@@ -98,13 +153,16 @@ func fire(id: String) -> bool:
 	var p := w.player
 	var rng := float(spec["range"]) * area() + p.r * 0.8
 	var t := best_target(p.position, rng)
-	if t == null:
+	var dir := aim_dir(p.position, t)
+	p.face = signf(dir.x) if absf(dir.x) > 0.1 else p.face
+	p.bite_t = 0.18
+	if t == null and String(spec["kind"]) in ["melee", "gulp", "multi", "lunge", "charm"]:
+		# nothing in reach: a swing at the air, so the button always answers
+		w.fx.slash(p.position + dir * (p.r + 6.0) + Vector2(0, -p.r * 0.8), dir, 7.0, Color(1, 1, 1, 0.7), 0.14)
+		Sfx.play(String(spec.get("sfx", "chomp")), randf_range(1.15, 1.3), -12.0)
 		return false
 	var rk := w.run.rank(id)
 	var dmg := power(String(spec["scale"])) * float(spec["coef"]) * Attacks.rank_dmg(rk)
-	var dir := (t.position - p.position).normalized()
-	p.face = signf(dir.x) if absf(dir.x) > 0.1 else p.face
-	p.bite_t = 0.18
 	Sfx.play(String(spec.get("sfx", "chomp")), randf_range(0.9, 1.15), -3.0)
 	match String(spec["kind"]):
 		"melee":
@@ -153,7 +211,7 @@ func fire(id: String) -> bool:
 			var s := _shoot(p.position + Vector2(0, -p.r), Vector2.ZERO, dmg, false, spec)
 			s["lob"] = true
 			s["from"] = p.position
-			s["to"] = t.position
+			s["to"] = t.position if t != null else p.position + dir * rng * 0.8
 			s["dur"] = 0.5
 			s["radius"] = float(spec["radius"]) * area()
 		"nova":

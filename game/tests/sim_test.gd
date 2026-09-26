@@ -383,6 +383,49 @@ func _food() -> void:
 	for sm in w.shrooms:
 		(sm["n"] as Node).queue_free()
 	w.shrooms.clear()
+	# attacks: you press them, they aim themselves
+	var a0 := w.combat.slot(0)
+	check(a0 != "", "you start with an attack in slot 1 (%s)" % a0)
+	var foe: Actor = w.spawn_animal("stoat", w.player.position + Vector2(w.player.r + 6.0, 0))
+	foe.asleep = false
+	foe.stun = 30.0
+	foe.max_hp = 9999.0
+	foe.hp = 9999.0
+	w._rebuild_grid()  # the world does this every step; targeting reads it
+	w.combat.cds[a0] = 0.0
+	for i in 40:
+		w.combat.step(0.016)
+	check(foe.hp >= 9999.0, "attacks don't go off on their own")
+	w.combat.tap(a0)
+	w.combat.step(0.016)
+	var hp_a: float = foe.hp
+	check(hp_a < 9999.0, "a tap strikes the enemy in reach, aimed for you")
+	check(float(w.combat.cds[a0]) > Combat.WHIFF_CD, "then the attack cools down")
+	w.combat.cds[a0] = 0.1
+	w.combat.tap(a0)
+	w.combat.step(0.05)
+	check(foe.hp == hp_a, "a press during the cooldown waits")
+	w.combat.step(0.06)
+	check(foe.hp < hp_a, "and goes off when the cooldown ends")
+	var hits := 0
+	var last: float = foe.hp
+	w.combat.hold(a0, true)
+	for i in int(w.combat.cd_of(a0) * 3.5 / 0.05):
+		w.combat.step(0.05)
+		if foe.hp < last:
+			hits += 1
+			last = foe.hp
+	w.combat.hold(a0, false)
+	check(hits >= 3, "holding the button keeps attacking (%d hits)" % hits)
+	foe.position += Vector2(400, 0)
+	w._rebuild_grid()
+	w.combat.cds[a0] = 0.0
+	last = foe.hp
+	w.combat.tap(a0)
+	w.combat.step(0.016)
+	check(foe.hp == last and is_equal_approx(float(w.combat.cds[a0]), Combat.WHIFF_CD), "with nothing in reach it swings at the air and is ready again soon")
+	foe.hp = 0.0
+	w._reap()
 	# kills drop pieces of food, big ones more, and no carcass
 	for f in w.foods:
 		(f["n"] as Node).queue_free()
@@ -520,6 +563,9 @@ func _sim(seconds: float, start_at: float, label: String) -> Dictionary:
 				w.input_dir = _bot(w)
 				if w.combat.ult_cd <= 0.0:
 					w.combat.use_ult()
+				# the bot holds an attack down while something is in its reach
+				for aid in main.run.attacks:
+					w.combat.hold(aid, w.combat.in_range(aid))
 				var t0 := Time.get_ticks_usec()
 				w.step(dt)
 				w._camera(dt)
