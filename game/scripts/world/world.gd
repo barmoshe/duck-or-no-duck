@@ -47,6 +47,8 @@ var rum_cd := 0.0
 var shrooms: Array = []  # {n, p, look, seen}
 var shroom_fx: Array = []  # look -> effect (Pois.SHROOMS index), dealt each run
 var shroom_known := {}  # looks you have eaten or named this run
+var shroom_on: Dictionary = {}  # the mushroom you are standing on
+var shroom_chew := 0.0  # seconds you have stood on it; at SHROOM_CHEW you eat it
 var hot_t := 0.0  # Medicinal: seconds of healing left
 var hot_rate := 0.0
 var trip := 0.0  # Hallucinogen: seconds of swirling colors
@@ -171,6 +173,8 @@ func clear() -> void:
 	shrooms.clear()
 	shroom_fx = Pois.deal_shrooms(rng)
 	shroom_known.clear()
+	shroom_on = {}
+	shroom_chew = 0.0
 	hot_t = 0.0
 	trip = 0.0
 	deaf = 0.0
@@ -844,7 +848,7 @@ func _pickups(dt: float) -> void:
 			n.queue_free()
 			foods.remove_at(i)
 	_feed(dt)
-	_shrooms_near()
+	_shrooms_near(dt)
 
 
 # ------------------------------------------------------------------ mushrooms
@@ -877,16 +881,30 @@ func shroom_in_reach() -> Dictionary:
 	return best
 
 
-## Mushrooms wait to be eaten. The first time you come near one you may name it on
-## sight (Senses, the identify stat); a look you've named or eaten shows its effect over
-## every mushroom of that look for the rest of the run.
-func _shrooms_near() -> void:
+## Mushrooms are eaten by stopping on one: stand on it for SHROOM_CHEW seconds and it's
+## yours, walk straight through and it stays. The first time you come near one you may
+## name it on sight (Senses, the identify stat); a look you've named or eaten shows its
+## effect over every mushroom of that look for the rest of the run.
+func _shrooms_near(dt: float) -> void:
 	fx.tags.clear()
 	if not valid(player) or player.under:
+		shroom_on = {}
+		shroom_chew = 0.0
 		return
 	var pp := player.position
 	var chance := Pois.identify_chance(float(run.stats["identify"]))
 	var near := shroom_in_reach()
+	if near.is_empty() or not is_same(near, shroom_on):
+		shroom_on = near
+		shroom_chew = 0.0
+	else:
+		shroom_chew += dt
+		player.eating = true
+		if shroom_chew >= Pois.SHROOM_CHEW:
+			eat_shroom()
+			shroom_on = {}
+			shroom_chew = 0.0
+			near = {}
 	# the one in reach first, so its label wins a crowded spot
 	var order := shrooms.duplicate()
 	if not near.is_empty():
@@ -901,17 +919,22 @@ func _shrooms_near() -> void:
 			if not shroom_known.has(look) and chance > 0.0 and rng.randf() < chance:
 				shroom_known[look] = true
 		var at := (sm["p"] as Vector2) + Vector2(0, -16)
+		var bar := -1.0
+		if is_same(sm, near):
+			# the one you stand on: its label and chew bar go over your head, not your face
+			at = player.position + Vector2(0, -player.r * 2.4 - 10)
+			bar = shroom_chew / Pois.SHROOM_CHEW
 		if shroom_known.has(look):
 			var e := shroom_effect(sm)
-			fx.tags.append({"p": at, "s": String(e[0]).to_upper(), "c": shroom_color(String(e[1]))})
+			fx.tags.append({"p": at, "s": String(e[0]).to_upper(), "c": shroom_color(String(e[1])), "bar": bar})
 		elif is_same(sm, near):
-			fx.tags.append({"p": at, "s": "???", "c": Pal.e("white")})
+			fx.tags.append({"p": at, "s": "???", "c": Pal.e("white"), "bar": bar})
 	if not near.is_empty():
-		_tip("shroom", "Tap EAT for the mushroom. Each look does the same thing all run")
+		_tip("shroom", "Stop on a mushroom to eat it. Each look does the same thing all run")
 
 
-## Eat the mushroom in reach: a little Progress, then its effect, and from now on you
-## know what that look does.
+## Eat the mushroom in reach (standing on it does this): a little Progress, then its
+## effect, and from now on you know what that look does.
 func eat_shroom() -> bool:
 	var sm := shroom_in_reach()
 	if sm.is_empty():

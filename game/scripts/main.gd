@@ -57,7 +57,6 @@ func _ready() -> void:
 	controls.process_mode = Node.PROCESS_MODE_PAUSABLE
 	controls.move_pressed.connect(func() -> void: world.combat.use_move())
 	controls.ult_pressed.connect(func() -> void: world.combat.use_ult())
-	controls.eat_pressed.connect(func() -> void: world.eat_shroom())
 	root.add_child(controls)
 	levelup = LevelUpScreen.new()
 	levelup.picked.connect(_on_picked)
@@ -144,7 +143,7 @@ func _shot_timer() -> void:
 				var fd := world.spawn_food(world.player.position + Vector2(5 + k * 2, 2 - k), "fruit" if k % 2 == 0 else "meat", 3.0, k % 3)
 				fd["v"] = Vector2.ZERO
 		if _shot_scene == "shrooms" and i == _shot_frames - 25 and state == S.RUN:
-			# every mushroom look around Puddle, half of them known, one in reach (EAT)
+			# every mushroom look around Puddle, half of them known, one being eaten
 			for sm in world.shrooms:
 				(sm["n"] as Node).queue_free()
 			world.shrooms.clear()
@@ -181,7 +180,7 @@ func _shot_timer() -> void:
 func _setup_input() -> void:
 	var map := {
 		"left": [KEY_A, KEY_LEFT], "right": [KEY_D, KEY_RIGHT], "up": [KEY_W, KEY_UP], "down": [KEY_S, KEY_DOWN],
-		"ult": [KEY_SPACE, KEY_K], "move_ab": [KEY_SHIFT, KEY_J], "pause": [KEY_ESCAPE, KEY_P], "eat": [KEY_E, KEY_L],
+		"ult": [KEY_SPACE, KEY_K], "move_ab": [KEY_SHIFT, KEY_J], "pause": [KEY_ESCAPE, KEY_P],
 	}
 	for action in map:
 		if not InputMap.has_action(action):
@@ -220,8 +219,6 @@ func _process(dt: float) -> void:
 				world.combat.use_ult()
 			if Input.is_action_just_pressed("move_ab"):
 				world.combat.use_move()
-			if Input.is_action_just_pressed("eat"):
-				world.eat_shroom()
 			_buttons()
 			if world.bosses.active():
 				Sfx.music("boss")
@@ -252,7 +249,6 @@ func _buttons() -> void:
 	controls.btns["ult"]["id"] = ul
 	controls.btns["ult"]["cd"] = world.combat.ult_cd
 	controls.btns["ult"]["max"] = world.combat.ult_max()
-	controls.btns["eat"]["label"] = "" if world.shroom_in_reach().is_empty() else "EAT"
 	controls.blocked = [hud.pause_rect]
 
 

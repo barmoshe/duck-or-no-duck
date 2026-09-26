@@ -7,7 +7,7 @@ var bits: Array = []  # {p, v, life, max, c, s, g}
 var rings: Array = []  # {p, r0, r1, t, dur, c}
 var cones: Array = []  # {p, dir, len, arc, t, dur, c}
 var texts: Array = []  # {p, s, t, dur, c, big}
-var tags: Array = []  # {p, s, c} labels that stay put, refilled every frame (mushroom names)
+var tags: Array = []  # {p, s, c, bar} labels that stay put, refilled every frame (mushroom names); bar 0..1 draws a chew bar under it
 var marks: Array = []  # {p, r, t, dur, c} telegraph circles
 var stars: Array = []  # {p, t, dur, c} four-point twinkles (legendary and healing food)
 var slashes: Array = []  # {p, dir, r, t, dur, c, flip} crescent swipes
@@ -166,6 +166,11 @@ func _draw() -> void:
 		if free:
 			taken.append(box)
 			_label((tg["p"] as Vector2).floor(), String(tg["s"]), tg["c"])
+			var fr := float(tg.get("bar", -1.0))
+			if fr >= 0.0:
+				var bp := (tg["p"] as Vector2).floor() + Vector2(-7, 3)
+				draw_rect(Rect2(bp - Vector2.ONE, Vector2(16, 4)), Pal.INK)
+				draw_rect(Rect2(bp, Vector2(roundf(14.0 * clampf(fr, 0.0, 1.0)), 2)), tg["c"])
 	for tx in texts:
 		var u := float(tx["t"]) / float(tx["dur"])
 		var p := ((tx["p"] as Vector2) + Vector2(0, -12.0 * u)).floor()
