@@ -304,7 +304,8 @@ static func lines(id: String, cur: int) -> Array:
 		var a: Dictionary = Attacks.ATTACK[id]
 		out.append(["Damage", "" if cur == 0 else "x%.2f" % Attacks.rank_dmg(cur), "x%.2f" % Attacks.rank_dmg(cur + 1)])
 		out.append(["Cooldown", "" if cur == 0 else "%.2fs" % (float(a["cd"]) * Attacks.rank_cd(cur)), "%.2fs" % (float(a["cd"]) * Attacks.rank_cd(cur + 1))])
-		out.append(["Range", "", "%.1f u %s" % [Attacks.range_u(id), String(Attacks.SHAPE_NAME[String(a["shape"])]).to_lower()]])
+		out.append(["Range", "", "%.1f u" % Attacks.range_u(id)])
+		out.append(["Shape", "", String(Attacks.SHAPE_NAME[String(a["shape"])])])
 		out.append(["Speed", "", Attacks.speed_name(id)])
 	elif t == "ultimate" and Attacks.ULT.has(id):
 		var ucd := float(Attacks.ULT[id]["cd"])

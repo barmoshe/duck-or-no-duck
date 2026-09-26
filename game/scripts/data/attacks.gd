@@ -17,10 +17,10 @@ const ATTACK := {
 	"tail_whip": {"cd": 1.6, "range": 30.0, "shape": "circle", "windup": 0.1, "scale": "physical", "coef": 0.8, "knock": 140.0, "sfx": "whip", "col": "peach"},
 	"spit": {"cd": 0.9, "range": 120.0, "shape": "shot", "speed": 170.0, "windup": 0.0, "scale": "ability", "coef": 0.8, "splash": 14.0, "ramp": "green", "sfx": "spit", "col": "leaf"},
 	"charge": {"cd": 2.2, "range": 70.0, "shape": "lunge", "width": 14.0, "windup": 0.15, "scale": "physical", "coef": 1.9, "knock": 180.0, "sfx": "thud", "col": "orange"},
-	"stinger": {"cd": 2.0, "range": 140.0, "shape": "shot", "speed": 240.0, "windup": 0.0, "scale": "ability", "coef": 0.5, "poison": 3.0, "poison_t": 5.0, "ramp": "purple", "sfx": "spit", "col": "grape"},
-	"peck_flurry": {"cd": 1.2, "range": 26.0, "shape": "line", "width": 8.0, "windup": 0.0, "scale": "physical", "coef": 0.4, "hits": 3, "crit_bonus": 10.0, "sfx": "peck", "col": "lemon"},
+	"stinger": {"cd": 2.0, "range": 140.0, "shape": "shot", "speed": 240.0, "windup": 0.0, "scale": "ability", "coef": 0.6, "poison": 3.0, "poison_t": 5.0, "ramp": "purple", "sfx": "spit", "col": "grape"},
+	"peck_flurry": {"cd": 1.2, "range": 26.0, "shape": "line", "width": 8.0, "windup": 0.0, "scale": "physical", "coef": 0.45, "hits": 3, "crit_bonus": 10.0, "sfx": "peck", "col": "lemon"},
 	"egg_toss": {"cd": 2.6, "range": 110.0, "shape": "lob", "flight": 0.5, "windup": 0.0, "scale": "ability", "coef": 1.4, "radius": 28.0, "sfx": "pop", "col": "lemon"},
-	"mud_splash": {"cd": 2.6, "range": 36.0, "shape": "circle", "windup": 0.05, "scale": "ability", "coef": 0.5, "slow": 0.5, "pool": 2.5, "ramp": "brown", "sfx": "splash", "col": "bark"},
+	"mud_splash": {"cd": 2.6, "range": 36.0, "shape": "circle", "windup": 0.05, "scale": "ability", "coef": 0.6, "slow": 0.5, "pool": 2.5, "ramp": "brown", "sfx": "splash", "col": "bark"},
 	"pincer_snap": {"cd": 1.3, "range": 20.0, "shape": "arc", "arc": 25.0, "windup": 0.1, "scale": "physical", "coef": 0.9, "hits": 2, "bleed": 5.0, "sfx": "snap", "col": "red"},
 	"charm_song": {"cd": 4.5, "range": 80.0, "shape": "bite", "windup": 0.3, "scale": "ability", "coef": 0.5, "sfx": "song", "col": "rose"},
 	"quack": {"cd": 2.6, "range": 64.0, "shape": "cone", "arc": 35.0, "windup": 0.1, "scale": "ability", "coef": 0.6, "stun": 0.9, "sfx": "quack", "col": "amber"},
@@ -49,7 +49,7 @@ const TRAIT := {
 	"constrict": "Holds the target and squeezes four times.",
 	"feather_darts": "Each feather goes through one animal.",
 }
-const SHAPE_NAME := {"bite": "One target", "arc": "Swipe", "line": "Strike ahead", "circle": "All around",
+const SHAPE_NAME := {"bite": "Single", "arc": "Swipe", "line": "Ahead", "circle": "Around",
 	"cone": "Cone", "lunge": "Charge", "shot": "Shot", "lob": "Lob"}
 
 
