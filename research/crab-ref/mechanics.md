@@ -28,6 +28,7 @@ Pouch, Saliva, Slow Metabolism, Scavenger (read 2026-09-26); everythingiscrab.or
 - **Mushrooms** are not eaten automatically: you interact, swallow it instantly, then
   digest it in bites like food; its effect starts when finished. All mushrooms give
   Progress scaled to the level.
+  Full notes in "Mushrooms" below.
 - **Boss Fruit (Branching Berry)**: one bite, eaten instantly in range, finishes the
   level with a branching choice, heals a set amount.
 - **Feeding Distance** (base 1 unit) scales with size. Arms +2..+6, Trunk +0.66..+5,
@@ -39,6 +40,42 @@ Pouch, Saliva, Slow Metabolism, Scavenger (read 2026-09-26); everythingiscrab.or
 - **Rarity rises** with run time and with Carcinisation.
 - **Diet bonuses** add up: Herbivore/Vegan (fruit), Piscivore (fish), Carnivore (meat),
   Scavenger (fish and meat you did not kill), Omnivore (all).
+
+## Mushrooms
+
+Sources (read through web search on 2026-09-26; the container blocks the pages themselves):
+everythingiscrab.org "mushroom effects and when to eat them", hinamizawa.ai "Mushrooms: 10
+Variants & 14 Effects", everythingiscrab.wiki/en/mushrooms, KosGuides "Mushroom Effects
+Guide", TheGamer beginner guide. wiki.gg has no `/wiki/Mushroom` article (empty page).
+
+- **You choose to eat one.** Mushrooms are not food you walk over: a prompt appears and you
+  press E (X on a pad) to eat it. Guides: "treat mushrooms as route decisions, not automatic
+  food". Skipping one is normal.
+- **They spawn anywhere but water.** Fungoid spawns more around you (every 18-24 s, down to
+  6-12 s); Ejection makes the next one 5 s sooner when you're hit.
+- **Every mushroom gives some Food Progress**, on top of its effect. Players on Steam say
+  that Progress is small ("seems to be no point to mushrooms").
+- **10 looks, 14 effects, rerolled each run.** A look is a shape and a color. At the start of a
+  run each look gets an effect, and it keeps it all run, so you learn "the green spotted one
+  heals" and can come back for it. Next run it may be Lethal.
+- **Identifying.** Looking at a mushroom can flash a word above it naming its effect. The
+  chance follows Senses: near 0 you bite blind, about 1 is right about a quarter of the time,
+  2.5 is always right. The label may not show again, so players remember the look.
+  More Eyes, Antennae, Nocturnal and Snout raise Senses; Snout also marks mushrooms at the
+  screen edge (and unlocks after eating 5 mushroom types).
+- **The 14 effects:**
+  - good (7): Yummy (extra Progress), Delicious, Medicinal (heals over the next 4 s),
+    Amusing, Mystical, Nutritious (+5 Max HP, for good), Prolific. Guides also list
+    "random stat bonuses" and one that refreshes ability cooldowns.
+  - side effects (2): Spicy (3 stacks of Heat, and a short speed boost), Refreshing
+    (3 stacks of Cold, and shorter active cooldowns).
+  - bad (5): Stinging (small poison damage over 4 s), Poisonous (heavy poison), Lethal
+    (medium poison over 4 s, scaled to Max HP), Hallucinogen (a visual effect for a few
+    seconds), Deafening (partly mutes the sound).
+- **Poison builds farm them.** Snout's Toxic Sequestration gives +10% poison damage for each
+  poisonous mushroom you eat.
+- **Not confirmed:** the old note above ("swallow it instantly, then digest it in bites like
+  food; its effect starts when finished") did not come up in any source this time.
 
 ## Evolutions
 
