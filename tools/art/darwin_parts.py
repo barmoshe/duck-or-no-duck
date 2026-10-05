@@ -117,5 +117,5 @@ for k, v in P.items():
     fr = ", ".join("[" + ", ".join('"%s"' % r for r in f) + "]" for f in v["frames"])
     out.append('\t"%s": {"anchor": Vector2i(%d, %d), "at": "%s", "layer": "%s", "frames": [%s]},' % (k, v["anchor"][0], v["anchor"][1], v["at"], v["layer"], fr))
 out.append('}')
-open('/home/user/bar_builds/lab/duck-or-no-duck/game/scripts/art/darwin/parts.gd', 'w').write("\n".join(out) + "\n")
+open(__import__('os').path.join(__import__('os').path.dirname(__import__('os').path.abspath(__file__)), '../../game/scripts/art/darwin/parts.gd'), 'w').write("\n".join(out) + "\n")
 print(len(P))

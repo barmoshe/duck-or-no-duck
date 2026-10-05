@@ -1,7 +1,7 @@
 # Duck or no duck ?! — STATUS
 
-- Updated: 2026-09-26 (v7.4)
-- Live: https://duck-or-no-duck.vercel.app (Vercel project `duck-or-no-duck`, git-linked, serves `public/`). v7.4 is live: build 8671ab06, deployed from main a1f0db9 on 2026-09-26.
+- Updated: 2026-10-05 (v7.4, moved to its own repo + GitHub Pages)
+- Live: https://barmoshe.github.io/duck-or-no-duck/ (GitHub Pages from this repo's `public/`, `.github/workflows/pages.yml`). Moved out of bar_builds into this sibling repo on 2026-10-05; the old Vercel project `duck-or-no-duck` is disconnected from git.
 
 ## Where we are
 v0.3 "reinvent" build, playable end to end. Headless tests, a balance report and a browser webtest all pass.
@@ -89,7 +89,6 @@ v0.3 "reinvent" build, playable end to end. Headless tests, a balance report and
 - Candidates from the reference pack: Stomach (Feeding Speed), Forager (healing-food chance), Tracker and Neck Bite (more food per kill).
 
 ## Blockers
-- Vercel's ignored-build-step cancels any deploy whose commit didn't change `public/` against its parent (a STATUS-only commit on top cancels the push deploy). Deploy the commit that published `public/`: Vercel MCP `create_deployment`, gitSource github barmoshe/bar_builds with that sha, target production, forceNew. v7.1 went live that way from d43011d2 (stamp 5d61f3fe).
+- Deploy: run `tools/publish.sh`, commit `public/`, push to main; the Pages workflow serves it within a minute or two.
 - On the Mac: run tools with `GODOT=~/Applications/Godot_v4.7.2.app/Contents/MacOS/Godot` (the `godot` on PATH is 4.6). `tools/webtest.sh` expects the cloud container's Playwright at /opt/node22; locally, check the live site in a browser instead.
-- The container blocks vercel.com and api.vercel.com, so deploys go through the Vercel MCP `create_deployment` with the git source (Vercel builds from GitHub).
 - The webtest's "sound comes out" check is flaky in headless Chromium: it sometimes reads 0 and passes on rerun.
