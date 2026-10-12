@@ -9,3 +9,7 @@ Built in Godot 4 and playable in the browser.
 - `public/` is the committed web export that GitHub Pages serves.
 - `tools/` holds the build, test and screenshot scripts (`tools/build_web.sh` rebuilds `public/`).
 - `STATUS.md` has where the game is and what is next.
+
+---
+
+Built by [Bar Moshe](https://bar-builds.com/?src=gh-duck)
